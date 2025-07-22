@@ -1,0 +1,21 @@
+# Virtual environments
+.venv/
+/env*
+.env
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+
+# Config files
+pyvenv.cfg
+
+# IDE specific
+.idea/*
+.vscode/
+
+# Logs and temp files
+*.log
+*.pot
+*.swp
+*~
