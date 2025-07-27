@@ -1,6 +1,7 @@
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import User
 from typing import List, Optional
+from django.contrib.auth.hashers import check_password
 
 
 class UserRepository:
@@ -37,6 +38,12 @@ class UserRepository:
         except self.User.DoesNotExist:
             return None
 
+    def get_by_username(self, username: str) -> Optional[User]:
+        try:
+            return self.User.objects.get(username=username)
+        except self.User.DoesNotExist:
+            return None
+
     def update(self, id: int, **kwargs) -> User:
         user = self.get_by_id(id)
         if not user:
@@ -68,3 +75,11 @@ class UserRepository:
 
     def user_exists(self, username: str) -> bool:
         return self.User.objects.filter(username=username).exists()
+
+    def authenticate_user(self, username: str, password: str) -> Optional[User]:
+        try:
+            user = self.User.objects.get(username=username)
+            if check_password(password, user.password):
+                return user
+        except self.User.DoesNotExist:
+            return None
