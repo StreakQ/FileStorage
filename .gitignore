@@ -19,3 +19,6 @@ pyvenv.cfg
 *.pot
 *.swp
 *~
+
+
+/static
