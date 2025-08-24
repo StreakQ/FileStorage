@@ -23,6 +23,9 @@ SESSION_SAVE_EVERY_REQUEST = False
 SESSION_COOKIE_SECURE = False  # True для HTTPS
 SESSION_COOKIE_HTTPONLY = True
 
+
+LOGIN_URL = 'users:login'
+LOGIN_REDIRECT_URL = 'files:file_manager'
 # Application definition
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -130,3 +133,10 @@ USE_TZ = True
 
 # Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+AWS_ACCESS_KEY_ID = config('MINIO_ROOT_USER')
+AWS_SECRET_ACCESS_KEY = config('MINIO_ROOT_PASSWORD')
+AWS_S3_ENDPOINT_URL = config('MINIO_ENDPOINT_URL')
+AWS_STORAGE_BUCKET_NAME = 'user-files'
+AWS_S3_REGION_NAME = 'us-east-1'
+AWS_S3_SIGNATURE_VERSION = 's3v4'
