@@ -1,0 +1,19 @@
+{% if breadcrumbs %}
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item">
+                <a href="{% url 'files:file_manager' %}' %}">Главная</a>
+            </li>
+
+            {% for crumb in breadcrumbs %}
+                {% if not forloop.last %}
+                    <li class="breadcrumb-item">
+                        <a href="{% url 'files:file_manager' %}?path={{ crumb.url_path|urlencode }}">{{ crumb.name }}</a>
+                    </li>
+                {% else %}
+                    <li class="breadcrumb-item active" aria-current="page">{{ crumb.name }}</li>
+                {% endif %}
+            {% endfor %}
+        </ol>
+    </nav>
+{% endif %}

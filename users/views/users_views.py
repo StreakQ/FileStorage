@@ -45,3 +45,16 @@ def register_view(request):
 def logout_view(request):
     logout(request)
     return redirect('users:login')
+
+
+def home_view(request):
+    """
+    Главная страница сайта
+
+    Для неаутентифицированных пользователей показывает форму входа/регистрации
+    Для аутентифицированных перенаправляет в файловый менеджер
+    """
+    if request.user.is_authenticated:
+        return redirect('files:file_manager')
+    else:
+        return render(request, "users/welcome.html")
