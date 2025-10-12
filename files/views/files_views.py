@@ -1,13 +1,16 @@
 from django.shortcuts import render, redirect
+from django.urls import reverse
 from django.views.decorators.csrf import csrf_protect
 from django.http import Http404
 from django.contrib.auth.decorators import login_required
 from files.services.fileStorage_service import FileStorageService
 import logging
-from urllib.parse import unquote
+from urllib.parse import unquote, urlencode
 from typing import List, Dict
 
 logger = logging.getLogger(__name__)
+
+service = FileStorageService()
 
 
 @csrf_protect
@@ -26,9 +29,7 @@ def file_manager_view(request):
 
         logger.debug(f"Текущий путь (переданный в ?path=): {current_path}")
 
-        storage_service = FileStorageService()
-
-        items = storage_service.list_files(user_id=user.id, prefix=current_path)
+        items = service.list_files(user_id=user.id, prefix=current_path)
         logger.debug(f"Получено {len(items)} для отображения")
 
         breadcrumbs = _build_breadcrumbs(current_path)
@@ -45,6 +46,59 @@ def file_manager_view(request):
     except Exception as e:
         logger.error(f"Ошибка в file_manager_view для пользователя {request.user.id}: {e}", exc_info=True)
         return render(request, 'files/error.html', {'error_message': 'Произошла ошибка при загрузке файлов.'})
+
+
+@login_required
+@csrf_protect
+def file_upload_view(request):
+    """
+    Позволяет пользователю загрузить файлы в облако
+    :param files: Файлы для загрузки
+    :param request:
+    :return:
+    """
+    if request.method == "POST":
+        user_id = request.user.id
+        current_path_form_form = request.POST.get('current_path', '').strip('/')
+        uploaded_files = request.FILES.getlist('files')
+
+        for uploaded_file in uploaded_files:
+            s3_filename = uploaded_file.name
+            if current_path_form_form:
+                s3_filename = f"{current_path_form_form}/{s3_filename}"
+
+            service.upload_file(
+                user_id=user_id,
+                file_obj=uploaded_file,
+                filename_in_s3=s3_filename,
+            )
+
+            redirect_url = "files:file_manager"
+            if current_path_form_form:
+                redirect_url = f"{reverse(redirect_url)}?path={current_path_form_form}"
+            else:
+                redirect_url = f"{reverse(redirect_url)}"
+            return redirect(redirect_url)
+    else:
+        return redirect('files:file_manager')
+
+
+@login_required
+@csrf_protect
+def file_download_view(request):
+    pass
+
+
+@login_required
+@csrf_protect
+def file_delete_view(request):
+    pass
+
+
+@login_required
+@csrf_protect
+def file_rename_view(request):
+    pass
 
 
 def _build_breadcrumbs(path: str) -> List[Dict]:

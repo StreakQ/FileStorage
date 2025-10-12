@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+</head>
+<body>
+    <form method="post" enctype="multipart/form-data" action="{% url 'files:upload' %}">
+        {% csrf_token %}
+
+        <input type="file" name="files" multiple>
+
+        <input type="hidden" name="current_path" value="{{ current_path }}">
+
+        <button type="submit">Загрузить</button>
+    </form>
+</body>
+</html>
