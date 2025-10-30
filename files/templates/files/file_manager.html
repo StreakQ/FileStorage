@@ -44,13 +44,34 @@
                                         class="btn btn-primary">Открыть</a>
                                     {% else %}
                                         <!-- Кнопки скачать и действия для файла -->
-                                        <a href="#" class="btn btn-success btn-sm">Скачать</a>
+                                        <a href="{% url 'files:download' s3_key=item.full_key %}" class="btn btn-success btn-sm">Скачать</a>
                                         <button class="btn btn-secondary btn-sm" data-bs-toggle="dropdown">
                                             <i class="fas fa-ellipsis-v"></i>
                                         </button>
+
                                         <ul class="dropdown-menu">
-                                            <li><a class="dropdown-item" href="#">Переименовать</a></li>
-                                            <li><a class="dropdown-item text-danger">Удалить</a></li>
+                                        <li>
+
+                                                <button type="button" class="dropdown-item"
+                                                        data-bs-toggle="modal"
+                                                        data-bs-target="#renameModal"
+                                                        data-full-name ="{{ item.full_key }}"
+                                                        data-item-name ="{{ item.name }}">
+                                                Переименовать
+                                                </button>
+
+                                        </li>
+
+                                        <li>
+                                            <form method="post" action="{% url 'files:delete' s3_key=item.full_key %}" style="display: inline">
+                                                    {% csrf_token %}
+                                                    <button type="submit" class="dropdown-item text-danger"
+                                                            onclick="return confirm('Вы уверены, что хотите удалить файл?')">
+                                                        Удалить
+                                                    </button>
+                                            </form>
+                                        </li>
+
                                         </ul>
                                     {% endif %}
                                 </div>
@@ -64,5 +85,49 @@
                 </div>
             {% endif %}
         </div>
+   <!--Модальное окно для переименовывания -->
+    <div class="modal fade" id="renameModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Переименовывание объекта</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                     <form method="post" id="renameForm" style="display: inline">
+                         {% csrf_token %}
+                        <div class="mb-3"><input type="text" class="form-control" id="newName" name="new_name" placeholder="Введите новое имя"></div>
+                     </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary" id="saveBtn">Сохранить</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dissmiss="modal">Отмена</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
    </div>
+<script>
+document.querySelectorAll('[data-bs-toggle="modal"][data-full-name]').forEach(button =>{
+    button.addEventListener('click', function (){
+        const fullKey = this.getAttribute('data-full-name')
+        const itemName = this.getAttribute('data-item-name')
+
+        const form = document.getElementById('renameForm')
+
+        form.action = `/files/rename/${encodeURIComponent(fullKey)}/`
+})
+
+
+})
+document.getElementById('saveBtn').addEventListener('click', function (){
+    const form = document.getElementById('renameForm')
+
+    form.submit()
+})
+
+</script>
+
+
 {% endblock %}

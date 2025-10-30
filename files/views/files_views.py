@@ -33,6 +33,7 @@ def file_manager_view(request):
         logger.debug(f"Получено {len(items)} для отображения")
 
         breadcrumbs = _build_breadcrumbs(current_path)
+        print(f"DEBUG: breadcrumbs = {breadcrumbs}")
         logger.debug(f"Breadcrumbs: {breadcrumbs}")
 
         context = {
@@ -53,7 +54,6 @@ def file_manager_view(request):
 def file_upload_view(request):
     """
     Позволяет пользователю загрузить файлы в облако
-    :param files: Файлы для загрузки
     :param request:
     :return:
     """
@@ -85,20 +85,83 @@ def file_upload_view(request):
 
 @login_required
 @csrf_protect
-def file_download_view(request):
-    pass
+def file_download_view(request, s3_key):
+    """
+    Позволяет пользователю скачать файлы из облака
+    :param s3_key:
+    :param request:
+    """
 
 
 @login_required
 @csrf_protect
-def file_delete_view(request):
-    pass
+def file_delete_view(request, s3_key):
+    """
+    Позволяет пользователю удалить файл
+    :param s3_key:
+    :param request:
+    :return:
+    """
+    if request.method == "POST":
+        user_id = request.user.id
+        expected_prefix = f"user-{user_id}-files/"
+
+        if not s3_key.startswith(expected_prefix):
+            raise Http404("Файл не найден или доступ запрещен")
+
+        try:
+
+            success = service.delete_object(
+                user_id=user_id,
+                s3_key=s3_key,
+            )
+            if success:
+                logger.info(f"файл {s3_key} удален")
+
+        except Exception as e:
+            logger.error(f"Ошибка при удалении файла {s3_key}: {e}", exc_info=True)
+
+        return redirect('files:file_manager')
+    else:
+        return redirect('files:file_manager')
 
 
 @login_required
 @csrf_protect
-def file_rename_view(request):
-    pass
+def file_rename_view(request, s3_key):
+    """
+    Позволяет пользователю переименовать файл
+    """
+    if request.method == "POST":
+        user_id = request.user.id
+        expected_prefix = f"user-{user_id}-files/"
+        new_name = request.POST.get('new_name', '').strip()
+
+        if not new_name:
+            return redirect('files:file_manager')
+
+        print("🔧 [DEBUG] new_name:", repr(new_name))
+
+        if not s3_key.startswith(expected_prefix):
+            raise Http404("Файл не найден или доступ запрещен")
+
+        try:
+            service.rename_object(
+                user_id=user_id,
+                s3_key=s3_key,
+                new_name=new_name,
+            )
+
+            return redirect('files:file_manager')
+
+        except Exception as e:
+            logger.error(f"Ошибка при переименовании файла {s3_key}: {e}", exc_info=True)
+
+            return redirect('files:file_manager')
+
+    else:
+
+        return redirect('files:file_manager')
 
 
 def _build_breadcrumbs(path: str) -> List[Dict]:

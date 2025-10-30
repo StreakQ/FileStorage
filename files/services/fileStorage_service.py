@@ -197,7 +197,7 @@ class FileStorageService:
             logger.error(f"Новое имя не может быть пустым")
             return False
 
-        old_full_key = f"user-{user_id}-files/{s3_key.lstrip('/')}"
+        old_full_key = s3_key
         is_folder = old_full_key.endswith('/')
 
         operations_count = 0
@@ -222,9 +222,10 @@ class FileStorageService:
                             new_object_key = f"{new_prefix}{relative_path}"
 
                             copy_source = {"Bucket": self.bucket_name, "Key": old_object_key}
+
                             self.s3_client.copy_object(
-                                CopySource=copy_source,
                                 Bucket=self.bucket_name,
+                                CopySource=copy_source,
                                 Key=new_object_key)
 
                             self.s3_client.delete_object(Bucket=self.bucket_name, Key=old_object_key)
@@ -243,7 +244,7 @@ class FileStorageService:
                 new_key = f"{parent_prefix}{new_name}"
 
                 copy_source = {"Bucket": self.bucket_name, "Key": old_key}
-                self.s3_client.copy_object(bucket_name=self.bucket_name, Key=new_key, CopySource=copy_source)
+                self.s3_client.copy_object(Bucket=self.bucket_name, Key=new_key, CopySource=copy_source)
                 self.s3_client.delete_object(Bucket=self.bucket_name, Key=old_key)
 
                 logger.info(f"Файл {old_key} переименован в {new_key}")
