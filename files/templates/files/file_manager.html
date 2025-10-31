@@ -112,15 +112,12 @@
 document.querySelectorAll('[data-bs-toggle="modal"][data-full-name]').forEach(button =>{
     button.addEventListener('click', function (){
         const fullKey = this.getAttribute('data-full-name')
-        const itemName = this.getAttribute('data-item-name')
-
         const form = document.getElementById('renameForm')
 
         form.action = `/files/rename/${encodeURIComponent(fullKey)}/`
+    })
 })
 
-
-})
 document.getElementById('saveBtn').addEventListener('click', function (){
     const form = document.getElementById('renameForm')
 

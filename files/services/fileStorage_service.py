@@ -147,7 +147,7 @@ class FileStorageService:
 
         :return: True, если удаление прошло успешно, иначе False
         """
-        full_s3_key = f"user-{user_id}-files/{s3_key}"
+        full_s3_key = s3_key
 
         try:
             if full_s3_key.endswith('/'):

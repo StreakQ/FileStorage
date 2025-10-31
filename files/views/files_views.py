@@ -140,8 +140,6 @@ def file_rename_view(request, s3_key):
         if not new_name:
             return redirect('files:file_manager')
 
-        print("🔧 [DEBUG] new_name:", repr(new_name))
-
         if not s3_key.startswith(expected_prefix):
             raise Http404("Файл не найден или доступ запрещен")
 
