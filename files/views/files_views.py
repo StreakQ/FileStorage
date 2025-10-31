@@ -1,9 +1,10 @@
 from django.shortcuts import render, redirect
 from django.urls import reverse
 from django.views.decorators.csrf import csrf_protect
-from django.http import Http404
+from django.http import Http404, StreamingHttpResponse
 from django.contrib.auth.decorators import login_required
 from files.services.fileStorage_service import FileStorageService
+from django.conf import settings
 import logging
 from urllib.parse import unquote, urlencode
 from typing import List, Dict
@@ -11,6 +12,8 @@ from typing import List, Dict
 logger = logging.getLogger(__name__)
 
 service = FileStorageService()
+
+bucket_name = settings.AWS_STORAGE_BUCKET_NAME
 
 
 @csrf_protect
@@ -92,6 +95,38 @@ def file_download_view(request, s3_key):
     :param request:
     """
 
+    user_id = request.user.id
+    expected_prefix = f"user-{user_id}-files/"
+
+    if not s3_key.startswith(expected_prefix):
+        raise Http404("Файл не найден или доступ запрещен")
+
+    try:
+        response = service.s3_client.get_object(Bucket=bucket_name, Key=s3_key)
+
+        file_stream = response["Body"]
+        content_type = response.get("ContentType", 'application/octet-stream')
+        content_length = response.get("ContentLength", None)
+
+        file_name = s3_key.split("/")[-1]
+
+        http_response = StreamingHttpResponse(file_stream, content_type=content_type)
+
+        http_response["Content-Disposition"] = f"attachment; filename={file_name}"
+
+        if content_length:
+            http_response["Content-Length"] = str(content_length)
+
+        logger.info(f"Файл {s3_key} начал скачиваться")
+        return http_response
+
+    except service.s3_client.exceptions.NoSuchKey:
+        logger.error(f"Файл не найден в S3: {s3_key}")
+        raise Http404("Файл не найден")
+
+    except Exception as e:
+        logger.error(f"Ошибка при скачивании файла {s3_key}: {e}", exc_info=True)
+        return redirect('files:file_manager')
 
 @login_required
 @csrf_protect

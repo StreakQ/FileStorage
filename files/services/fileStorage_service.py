@@ -284,3 +284,4 @@ class FileStorageService:
         except Exception as e:
             logger.error(f"Неожиданная ошибка при создании папки '{s3_key}': {e}")
             return False
+

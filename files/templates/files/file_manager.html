@@ -43,8 +43,11 @@
                                         <a href="{% url 'files:file_manager' %}?path={{ item.full_key|urlencode }}"
                                         class="btn btn-primary">Открыть</a>
                                     {% else %}
+
                                         <!-- Кнопки скачать и действия для файла -->
-                                        <a href="{% url 'files:download' s3_key=item.full_key %}" class="btn btn-success btn-sm">Скачать</a>
+                                        <a href="{% url 'files:download' s3_key=item.full_key %}" class="btn btn-success btn-sm">
+                                            <i class="fas fa-download"></i> Скачать
+                                        </a>
                                         <button class="btn btn-secondary btn-sm" data-bs-toggle="dropdown">
                                             <i class="fas fa-ellipsis-v"></i>
                                         </button>
