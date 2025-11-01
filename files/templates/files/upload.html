@@ -1,18 +1,59 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Title</title>
-</head>
-<body>
-    <form method="post" enctype="multipart/form-data" action="{% url 'files:upload' %}">
-        {% csrf_token %}
+{% extends 'base.html' %}
+{% load static %}
+{% block content %}
+<form method="post" enctype="multipart/form-data" action="{% url 'files:upload' %}">
+    {% csrf_token %}
 
-        <input type="file" name="files" multiple>
+    <!-- Скрытый инпут -->
+    <input type="file" name="files" multiple id="fileInput" style="display: none;">
 
-        <input type="hidden" name="current_path" value="{{ current_path }}">
+    <!-- Кастомная кнопка -->
+    <button type="button" class="btn btn-primary" id="customUploadBtn">
+        <i class="fas fa-upload"></i> Выбрать файлы
+    </button>
 
-        <button type="submit">Загрузить</button>
-    </form>
-</body>
-</html>
+    <!-- Скрытое поле пути -->
+    <input type="hidden" name="current_path" value="{{ current_path }}">
+
+    <!-- Кнопка отправки -->
+    <button type="submit" class="btn btn-outline-primary" id="uploadBtn">Загрузить (0 файлов)</button>
+</form>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Ждём, пока DOM загрузится
+document.addEventListener('DOMContentLoaded', function () {
+    const uploadBtn = document.getElementById('uploadBtn');
+    const customBtn = document.getElementById('customUploadBtn');
+    const input = document.getElementById('fileInput');
+
+    // Проверка, что все элементы найдены
+    if (!uploadBtn || !customBtn || !input) {
+        console.error('Элементы формы не найдены');
+        return;
+    }
+
+    // По умолчанию кнопка отправки отключена
+    uploadBtn.disabled = true;
+
+    // При клике на кастомную кнопку — открываем диалог выбора файла
+    customBtn.addEventListener('click', function () {
+        input.click();
+    });
+
+    // При выборе файлов
+    input.addEventListener('change', function () {
+        const files = input.files;
+
+        if (files.length === 0) {
+            uploadBtn.disabled = true;
+            uploadBtn.textContent = 'Загрузить (0 файлов)';
+        } else {
+            uploadBtn.disabled = false;
+            uploadBtn.textContent = `Загрузить (${files.length} файл${files.length > 1 ? 'ов' : ''})`;
+        }
+    });
+});
+</script>
+{% endblock %}

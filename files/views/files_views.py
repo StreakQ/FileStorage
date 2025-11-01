@@ -76,12 +76,12 @@ def file_upload_view(request):
                 filename_in_s3=s3_filename,
             )
 
-            redirect_url = "files:file_manager"
-            if current_path_form_form:
-                redirect_url = f"{reverse(redirect_url)}?path={current_path_form_form}"
-            else:
-                redirect_url = f"{reverse(redirect_url)}"
-            return redirect(redirect_url)
+        redirect_url = "files:file_manager"
+        if current_path_form_form:
+            redirect_url = f"{reverse(redirect_url)}?path={current_path_form_form}"
+        else:
+            redirect_url = f"{reverse(redirect_url)}"
+        return redirect(redirect_url)
     else:
         return redirect('files:file_manager')
 
