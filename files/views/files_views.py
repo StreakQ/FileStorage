@@ -5,6 +5,7 @@ from django.http import Http404, StreamingHttpResponse
 from django.contrib.auth.decorators import login_required
 from files.services.fileStorage_service import FileStorageService
 from django.conf import settings
+from django.contrib import messages
 import logging
 from urllib.parse import unquote, urlencode
 from typing import List, Dict
@@ -128,6 +129,7 @@ def file_download_view(request, s3_key):
         logger.error(f"Ошибка при скачивании файла {s3_key}: {e}", exc_info=True)
         return redirect('files:file_manager')
 
+
 @login_required
 @csrf_protect
 def file_delete_view(request, s3_key):
@@ -197,6 +199,31 @@ def file_rename_view(request, s3_key):
         return redirect('files:file_manager')
 
 
+@login_required
+@csrf_protect
+def create_folder_view(request):
+    if request.method == "POST":
+        user_id = request.user.id
+        folder_name = request.POST.get('folder_name', '').strip()
+        current_path = request.POST.get('current_path', '').strip()
+
+        if not folder_name:
+            messages.error(request, 'Имя папки не может быть пустым')
+        else:
+            full_path = f"{current_path.rstrip('/')}/{folder_name}/".lstrip('/')
+
+            try:
+                service.create_folder(user_id=user_id, folder_s3_key=full_path)
+                messages.success(request, f'Папка "{folder_name}" создана')
+            except Exception as e:
+                logger.error(f"Ошибка при создании папки {full_path}: {e}", exc_info=True)
+                messages.error(request, 'Не удалось создать папку')
+
+        return redirect('files:file_manager')
+
+    return redirect('files:file_manager')
+
+
 def _build_breadcrumbs(path: str) -> List[Dict]:
     """
     Вспомогательная функция для построения навигационной цепочки из пути.
@@ -226,4 +253,3 @@ def _build_breadcrumbs(path: str) -> List[Dict]:
         })
 
     return breadcrumbs
-

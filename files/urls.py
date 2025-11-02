@@ -9,5 +9,6 @@ urlpatterns = [
      path('download/<path:s3_key>/', file_download_view, name='download'),
      path('delete/<path:s3_key>/', file_delete_view, name='delete'),
      path('rename/<path:s3_key>/', file_rename_view, name='rename'),
+     path('create_folder/', create_folder_view, name='create_folder'),
 
 ]

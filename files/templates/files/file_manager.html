@@ -16,6 +16,20 @@
         <!-- Форма загрузки -->
         {% include 'files/upload.html' %}
 
+        <button class="btn btn-primary mt-3" id="showCreateForm">
+            <i class="fas fa-folder-plus"> Создать папку</i>
+        </button>
+
+        <form method="post" action="{% url 'files:create_folder'  %}" style="display: none" id="createFolderForm" class="mt-2">
+            {% csrf_token %}
+            <input type="hidden" name="current_path" value="{{ current_path }}">
+            <div class="input-group">
+                <input type="text" name="folder_name" class="form-control" placeholder="имя новой папки" required>
+                <button type="submit" class="btn btn-success">Создать</button>
+                <button type="button" class="btn btn-secondary" id="cancelCreate">Отмена</button>
+            </div>
+        </form>
+
         <div class="row mt-3">
             {% if items %}
                 {% for item in items %}
@@ -126,6 +140,24 @@ document.getElementById('saveBtn').addEventListener('click', function (){
 
     form.submit()
 })
+
+
+///Скрипт для создания папки
+    const creationBtn = document.getElementById('showCreateForm')
+    const createForm = document.getElementById('createFolderForm')
+    const cancelCreate = document.getElementById('cancelCreate')
+
+
+    creationBtn.addEventListener('click', function (){
+        createForm.style.display = 'block'
+        this.style.display = 'none'
+        document.querySelector('#createFolderForm input').focus();
+})
+
+    cancelCreate.addEventListener('click',function (){
+        createForm.style.display = 'none'
+        creationBtn.style.display = 'inline-block'
+    })
 
 </script>
 

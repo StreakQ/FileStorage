@@ -273,7 +273,7 @@ class FileStorageService:
             s3_key += '/'
 
         try:
-            self.s3_client.put_object(Bucket=self.bucket_name, Key=folder_s3_key, Body=b'')
+            self.s3_client.put_object(Bucket=self.bucket_name, Key=s3_key, Body=b'')
             logger.info(f"Папка {s3_key} создана")
             return True
 
