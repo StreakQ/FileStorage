@@ -207,21 +207,38 @@ def create_folder_view(request):
         folder_name = request.POST.get('folder_name', '').strip()
         current_path = request.POST.get('current_path', '').strip()
 
+        print(f"[create_folder] current_path='{current_path}', folder_name='{folder_name}'")
+
         if not folder_name:
             messages.error(request, 'Имя папки не может быть пустым')
-        else:
-            full_path = f"{current_path.rstrip('/')}/{folder_name}/".lstrip('/')
+            # Сохраняем путь
+            return redirect_with_path(current_path)
 
-            try:
-                service.create_folder(user_id=user_id, folder_s3_key=full_path)
-                messages.success(request, f'Папка "{folder_name}" создана')
-            except Exception as e:
-                logger.error(f"Ошибка при создании папки {full_path}: {e}", exc_info=True)
-                messages.error(request, 'Не удалось создать папку')
+        # Формируем full_path
+        # Убедимся, что current_path заканчивается на / (если не пустой)
+        if current_path and not current_path.endswith('/'):
+            current_path += '/'
+        full_path = f"{current_path}{folder_name}/"
 
-        return redirect('files:file_manager')
+        try:
+            service.create_folder(user_id=user_id, folder_s3_key=full_path)
+            messages.success(request, f'Папка "{folder_name}" создана')
+            # Перенаправляем в новую папку
+            return redirect_with_path(full_path)
+        except Exception as e:
+            logger.error(f"Ошибка при создании папки {full_path}: {e}", exc_info=True)
+            messages.error(request, 'Не удалось создать папку')
+
+        return redirect_with_path(full_path)
 
     return redirect('files:file_manager')
+
+
+def redirect_with_path(path: str):
+    from django.urls import reverse
+    from urllib.parse import quote
+    query = f"?path={quote(path)}" if path else ""
+    return redirect(f"{reverse('files:file_manager')}{query}")
 
 
 def _build_breadcrumbs(path: str) -> List[Dict]:
