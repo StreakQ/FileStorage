@@ -17,41 +17,58 @@ service = FileStorageService()
 bucket_name = settings.AWS_STORAGE_BUCKET_NAME
 
 
+@login_required
+def home_redirect_view(request):
+    user_id = request.user.id
+    user_folder = f"user-{user_id}-files/"
+
+    from django.urls import reverse
+    from urllib.parse import urlencode
+
+    url = reverse('file_manager')
+    query = urlencode({'path': user_folder})
+
+    return redirect(f"{url}?{query}")
+
+
 @csrf_protect
 @login_required
 def file_manager_view(request):
-    """
-    Отображает файловый менеджер
-    :param request:
-    :return:
-    """
     try:
         user = request.user
+        user_id = user.id
+        base_prefix = f"user-{user_id}-files/"
 
         encoded_path = request.GET.get('path', '')
         current_path = unquote(encoded_path) if encoded_path else ''
 
-        logger.debug(f"Текущий путь (переданный в ?path=): {current_path}")
+        logger.debug(f"[file_manager] Получен path: '{current_path}'")
 
-        items = service.list_files(user_id=user.id, prefix=current_path)
-        logger.debug(f"Получено {len(items)} для отображения")
+        if not current_path or current_path == '/' or current_path.startswith('/'):
+            current_path = base_prefix
 
+        if not current_path.startswith(base_prefix):
+            logger.warning(f"Подмена пути: {current_path} → принудительно установлен {base_prefix}")
+            current_path = base_prefix
+
+
+        if not current_path.endswith('/'):
+            current_path += '/'
+
+        items = service.list_files(user_id=user_id, prefix=current_path)
         breadcrumbs = _build_breadcrumbs(current_path)
-        print(f"DEBUG: breadcrumbs = {breadcrumbs}")
-        logger.debug(f"Breadcrumbs: {breadcrumbs}")
 
         context = {
-            'breadcrumbs': breadcrumbs,
             'items': items,
-            "current_path": current_path,
+            'breadcrumbs': breadcrumbs,
+            'current_path': current_path,
         }
 
         return render(request, "files/file_manager.html", context)
 
     except Exception as e:
-        logger.error(f"Ошибка в file_manager_view для пользователя {request.user.id}: {e}", exc_info=True)
-        return render(request, 'files/error.html', {'error_message': 'Произошла ошибка при загрузке файлов.'})
-
+        logger.error(f"Ошибка в file_manager_view: {e}", exc_info=True)
+        return render(request, 'files/error.html', {'error_message': 'Ошибка загрузки'})
 
 @login_required
 @csrf_protect
@@ -207,29 +224,28 @@ def create_folder_view(request):
         folder_name = request.POST.get('folder_name', '').strip()
         current_path = request.POST.get('current_path', '').strip()
 
-        print(f"[create_folder] current_path='{current_path}', folder_name='{folder_name}'")
+        logger.debug(f"[create_folder] current_path='{current_path}', folder_name='{folder_name}'")
 
         if not folder_name:
             messages.error(request, 'Имя папки не может быть пустым')
-            # Сохраняем путь
-            return redirect_with_path(current_path)
+            return redirect_with_path(current_path or f"user-{user_id}-files/")
 
-        # Формируем full_path
-        # Убедимся, что current_path заканчивается на / (если не пустой)
-        if current_path and not current_path.endswith('/'):
+        if not current_path.endswith('/'):
             current_path += '/'
         full_path = f"{current_path}{folder_name}/"
 
         try:
-            service.create_folder(user_id=user_id, folder_s3_key=full_path)
-            messages.success(request, f'Папка "{folder_name}" создана')
-            # Перенаправляем в новую папку
-            return redirect_with_path(full_path)
+            success = service.create_folder(user_id=user_id, folder_s3_key=full_path)
+            if success:
+                messages.success(request, f'Папка "{folder_name}" создана')
+                return redirect_with_path(full_path)
+            else:
+                messages.error(request, 'Не удалось создать папку')
+                return redirect_with_path(current_path)
         except Exception as e:
             logger.error(f"Ошибка при создании папки {full_path}: {e}", exc_info=True)
-            messages.error(request, 'Не удалось создать папку')
-
-        return redirect_with_path(full_path)
+            messages.error(request, 'Ошибка сервера')
+            return redirect_with_path(current_path)
 
     return redirect('files:file_manager')
 

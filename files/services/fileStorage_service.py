@@ -79,24 +79,16 @@ class FileStorageService:
 
     def list_files(self, user_id: int, prefix: str = '') -> list[dict]:
         """
-        Получает Список файлов и папок для указанного пользователя и префикса.
-
-        :param user_id:Идентификатор пользователя Django
-        :param prefix: Префикс пути внутри пользователя
-
-        :return:
-            list[dict] - Список словарей, представляющий файлы или папки.
-                Каждый словарь содержит ключи:
-                - 'type': 'file' или 'folder'
-                - 'name': имя файла или папки
-                - 'full_key': Полный ключ s3
-                - 'size': размер (только для файлов)
-                - 'last_modified': время последнего изменения (только для файлов)
+        Получает список файлов и папок.
+        Ожидается, что `prefix` — это полный путь, например: user-1-files/www/
         """
 
-        s3_prefix = f"user-{user_id}-files/{prefix.lstrip('/')}"
-        if s3_prefix and not s3_prefix.endswith('/'):
-            s3_prefix += '/'
+        s3_prefix = prefix.rstrip('/') + '/' if prefix else f"user-{user_id}-files/"
+
+        expected_prefix = f"user-{user_id}-files/"
+        if not s3_prefix.startswith(expected_prefix):
+            logger.warning(f"Запрещённый префикс: {s3_prefix}")
+            return []
 
         try:
             response = self.s3_client.list_objects_v2(
@@ -104,12 +96,13 @@ class FileStorageService:
                 Prefix=s3_prefix,
                 Delimiter='/'
             )
-            items = []
-            #Обработка папок
-            for common_prefix in response.get('CommonPrefixes', []):
-                folder_prefix = common_prefix.get('Prefix')
-                folder_name = folder_prefix[len(s3_prefix):].rstrip('/')
 
+            items = []
+
+            # Папки
+            for cp in response.get('CommonPrefixes', []):
+                folder_prefix = cp['Prefix']
+                folder_name = folder_prefix[len(s3_prefix):].rstrip('/')
                 if folder_name:
                     items.append({
                         'type': 'folder',
@@ -117,26 +110,27 @@ class FileStorageService:
                         'full_key': folder_prefix
                     })
 
-            #Обработка папок
+            # Файлы
             for item in response.get('Contents', []):
-                key = item.get('Key')
+                key = item['Key']
+                if key == s3_prefix:
+                    continue
                 file_name = key[len(s3_prefix):]
-
                 if file_name:
                     items.append({
                         'type': 'file',
                         'name': file_name,
                         'full_key': key,
-                        'size': item.get('Size', 0),
-                        'last_modified': item.get('LastModified', None)
+                        'size': item['Size'],
+                        'last_modified': item['LastModified']
                     })
 
-            logger.debug(f"Получен список {len(items)} элементов для пользователя {user_id}")
+            logger.debug(f"[list_files] Найдено {len(items)} элементов по префиксу '{s3_prefix}'")
             return items
 
         except ClientError as e:
-            logger.error(f'Ошибка при получении списка элементов пользователя {user_id}: {e} ')
-            return False
+            logger.error(f"[list_files] Ошибка S3: {e}")
+            return []
 
     def delete_object(self, user_id: int, s3_key: str) -> bool:
         """

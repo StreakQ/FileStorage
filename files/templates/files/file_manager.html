@@ -54,8 +54,17 @@
                             {% endif %}
                                 <div class="mt-auto">
                                     {% if item.type == 'folder' %}
+                                        <div class="d-flex gap-2">
                                         <a href="{% url 'files:file_manager' %}?path={{ item.full_key|urlencode }}"
-                                        class="btn btn-primary">Открыть</a>
+                                        class="btn btn-primary btn-sm"><i class="fas fa-folder-open"> Открыть</i></a>
+                                         <form method="post" action="{% url 'files:delete' s3_key=item.full_key %}">
+                                                    {% csrf_token %}
+                                                    <button type="submit" class="btn btn-danger btn-sm"
+                                                            onclick="return confirm('Вы уверены, что хотите удалить файл?')">
+                                                        <i class="fas fa-trash"></i> Удалить
+                                                    </button>
+                                            </form>
+                                        </div>
                                     {% else %}
 
                                         <!-- Кнопки скачать и действия для файла -->
