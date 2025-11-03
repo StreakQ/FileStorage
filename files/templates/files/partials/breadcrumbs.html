@@ -1,8 +1,8 @@
 <nav aria-label="breadcrumb">
     <ol class="breadcrumb">
-        <li class="breadcrumb-item {% if not breadcrumbs %}active {% endif %}" {% if not breadcrumbs %} aria-current="page" {% endif %} >
-            <a href="{% url 'files:file_manager' %}">Главная</a>
-        </li>
+{#        <li class="breadcrumb-item {% if not breadcrumbs %}active {% endif %}" {% if not breadcrumbs %} aria-current="page" {% endif %} >#}
+{#            <a href="{% url 'files:file_manager' %}">Главная</a>#}
+{#        </li>#}
 
         {% for crumb in breadcrumbs %}
             {% if not forloop.last %}

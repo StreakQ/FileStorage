@@ -261,27 +261,36 @@ class FileStorageService:
 
     def create_folder(self, user_id: int, folder_s3_key: str) -> bool:
         """
-        Создает новую папку
+        Создаёт папку по полному S3-ключу.
+        Ожидается, что folder_s3_key уже содержит нужный префикс, например: user-1-files/projects/docs/
 
-        :param user_id: Идентификатор пользователя Django
-        :param folder_s3_key: Желаемый префикс папки
-
-        :return: True, если создание прошло успешно, иначе False
+        :param user_id: ID пользователя (для проверки доступа)
+        :param folder_s3_key: Полный ключ папки (должен начинаться с user-{id}-files/)
+        :return: True при успехе
         """
-        s3_key = f"user-{user_id}-files/{folder_s3_key.lstrip('/')}"
-        if s3_key and not s3_key.endswith('/'):
-            s3_key += '/'
+        expected_prefix = f"user-{user_id}-files/"
+
+        if not folder_s3_key.startswith(expected_prefix):
+            logger.error(f"Отказ в создании папки: путь '{folder_s3_key}' вне зоны доступа пользователя {user_id}")
+            return False
+
+        if not folder_s3_key.endswith('/'):
+            folder_s3_key += '/'
 
         try:
-            self.s3_client.put_object(Bucket=self.bucket_name, Key=s3_key, Body=b'')
-            logger.info(f"Папка {s3_key} создана")
+            self.s3_client.put_object(
+                Bucket=self.bucket_name,
+                Key=folder_s3_key,
+                Body=b''
+            )
+            logger.info(f"Папка создана: {folder_s3_key}")
             return True
 
         except ClientError as e:
-            logger.error(f"Ошибка при создании новой папки {s3_key} : {e}")
+            logger.error(f"Ошибка S3 при создании папки {folder_s3_key}: {e}")
             return False
 
         except Exception as e:
-            logger.error(f"Неожиданная ошибка при создании папки '{s3_key}': {e}")
+            logger.error(f"Неожиданная ошибка при создании папки {folder_s3_key}: {e}", exc_info=True)
             return False
 
