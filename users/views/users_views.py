@@ -1,6 +1,7 @@
 from django.shortcuts import render, redirect
 from django.views.decorators.csrf import csrf_protect
-from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth import login, logout
+from urllib.parse import quote
 
 
 @csrf_protect
@@ -15,9 +16,12 @@ def login_view(request):
         user = service.sign_in(username, password)
         if user is not None:
             login(request, user)
-            return redirect('files:file_manager')
+
+            user_folder = f"user-{user.id}-files/"
+            return redirect(f"/files/manager/?path={quote(user_folder)}")
         else:
-            return render(request, "users/login.html", {'error': 'Invalid username or password'})
+            return render(request, "users/login.html", {'error': 'Неверное имя пользователя или пароль'})
+
     return render(request, "users/login.html")
 
 
@@ -33,12 +37,14 @@ def register_view(request):
 
         try:
             user = service.sign_up(username, password, email)
-
             login(request, user)
-            return redirect('files:file_manager')
+
+            user_folder = f"user-{user.id}-files/"
+            return redirect(f"/files/manager/?path={quote(user_folder)}")
 
         except Exception as e:
             return render(request, "users/register.html", {'error': str(e)})
+
     return render(request, "users/register.html")
 
 
@@ -49,12 +55,10 @@ def logout_view(request):
 
 def home_view(request):
     """
-    Главная страница сайта
-
-    Для неаутентифицированных пользователей показывает форму входа/регистрации
-    Для аутентифицированных перенаправляет в файловый менеджер
+    Главная страница: если залогинен - в файловый менеджер, иначе - приветствие
     """
     if request.user.is_authenticated:
-        return redirect('files:file_manager')
+        user_folder = f"user-{request.user.id}-files/"
+        return redirect(f"/files/manager/?path={quote(user_folder)}")
     else:
         return render(request, "users/welcome.html")

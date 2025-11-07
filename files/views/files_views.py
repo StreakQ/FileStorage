@@ -70,38 +70,34 @@ def file_manager_view(request):
         logger.error(f"Ошибка в file_manager_view: {e}", exc_info=True)
         return render(request, 'files/error.html', {'error_message': 'Ошибка загрузки'})
 
+
 @login_required
 @csrf_protect
 def file_upload_view(request):
-    """
-    Позволяет пользователю загрузить файлы в облако
-    :param request:
-    :return:
-    """
-    if request.method == "POST":
+    if request.method == 'POST':
         user_id = request.user.id
-        current_path_form_form = request.POST.get('current_path', '').strip('/')
-        uploaded_files = request.FILES.getlist('files')
+        files = request.FILES.getlist('files')
+        current_path = request.POST.get('current_path', '').strip()
 
-        for uploaded_file in uploaded_files:
-            s3_filename = uploaded_file.name
-            if current_path_form_form:
-                s3_filename = f"{current_path_form_form}/{s3_filename}"
+        logger.debug(f"[upload] Получен current_path: '{current_path}'")
 
-            service.upload_file(
+        if not current_path or not current_path.startswith(f"user-{user_id}-files"):
+            current_path = f"user-{user_id}-files/"
+
+        for uploaded_file in files:
+            filename_in_s3 = f"{current_path}{uploaded_file.name}"
+
+            success = service.upload_file(
                 user_id=user_id,
                 file_obj=uploaded_file,
-                filename_in_s3=s3_filename,
+                filename_in_s3=filename_in_s3
             )
+            if not success:
+                messages.error(request, f"Ошибка при загрузке {uploaded_file.name}")
 
-        redirect_url = "files:file_manager"
-        if current_path_form_form:
-            redirect_url = f"{reverse(redirect_url)}?path={current_path_form_form}"
-        else:
-            redirect_url = f"{reverse(redirect_url)}"
-        return redirect(redirect_url)
-    else:
-        return redirect('files:file_manager')
+        return redirect_with_path(current_path)
+
+    return redirect('files:file_manager')
 
 
 @login_required

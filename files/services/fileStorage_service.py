@@ -59,10 +59,14 @@ class FileStorageService:
             ValueError: Если имя файла пустое
         """
         if not filename_in_s3:
-            logger.error(f"Имя файла не может быть пустым")
-            raise ValueError("Имя файла не может быть пустым")
+            return False
 
-        s3_key = f"user-{user_id}-files/{filename_in_s3.lstrip('/')}"
+        s3_key = filename_in_s3
+
+        expected_prefix = f"user-{user_id}-files/"
+        if not s3_key.startswith(expected_prefix):
+            logger.error(f"Попытка загрузки вне зоны доступа: {s3_key}")
+            return False
 
         try:
             self.s3_client.put_object(
