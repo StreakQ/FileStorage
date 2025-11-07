@@ -25,7 +25,7 @@ class FileStorageServiceTest(TestCase):
         with patch.object(self.service.s3_client, 'put_object') as mock_put:
             result = self.service.upload_file(user_id=1,
                                               file_obj=file_data,
-                                              filename_in_s3='/docs/report.pdf')
+                                              filename_in_s3='user-1-files/docs/report.pdf')
 
             mock_put.assert_called_once()
             call_kwargs = mock_put.call_args[1]
@@ -39,7 +39,7 @@ class FileStorageServiceTest(TestCase):
         with patch.object(self.service.s3_client, 'put_object'):
             result = self.service.upload_file(user_id=1,
                                               file_obj=file_data,
-                                              filename_in_s3='test.pdf')
+                                              filename_in_s3='user-1-files/test.pdf')
 
             self.assertTrue(result)
 

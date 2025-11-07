@@ -58,27 +58,26 @@ class FileStorageService:
         :raises
             ValueError: Если имя файла пустое
         """
-        if not filename_in_s3:
-            return False
-
-        s3_key = filename_in_s3
+        if not filename_in_s3 or not filename_in_s3.strip():
+            logger.error("Имя файла не может быть пустым")
+            raise ValueError("Имя файла не может быть пустым")
 
         expected_prefix = f"user-{user_id}-files/"
-        if not s3_key.startswith(expected_prefix):
-            logger.error(f"Попытка загрузки вне зоны доступа: {s3_key}")
+        if not filename_in_s3.startswith(expected_prefix):
+            logger.error(f"Попытка загрузки вне зоны доступа: {filename_in_s3}")
             return False
 
         try:
             self.s3_client.put_object(
                 Bucket=self.bucket_name,
                 Body=file_obj,
-                Key=s3_key,
+                Key=filename_in_s3,
             )
-            logger.info(f'Файл успешно загружен в {self.bucket_name}/{s3_key}')
+            logger.info(f'Файл успешно загружен в {self.bucket_name}/{filename_in_s3}')
             return True
 
         except ClientError as e:
-            logger.info(f"Ошибка загрузки файла {s3_key} для пользователя {user_id}: {e}")
+            logger.info(f"Ошибка загрузки файла {filename_in_s3} для пользователя {user_id}: {e}")
             return False
 
     def list_files(self, user_id: int, prefix: str = '') -> list[dict]:
@@ -145,6 +144,10 @@ class FileStorageService:
 
         :return: True, если удаление прошло успешно, иначе False
         """
+        if not s3_key or not s3_key.strip():
+            logger.error("Нельзя удалить объект с пустым ключом")
+            return False
+
         full_s3_key = s3_key
 
         try:
