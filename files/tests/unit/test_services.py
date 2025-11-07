@@ -1,9 +1,6 @@
-import unittest
 from unittest.mock import patch
-
 from botocore.exceptions import ClientError
 from django.test import TestCase
-from django.contrib.auth.models import User
 from files.services.fileStorage_service import FileStorageService
 
 
@@ -208,5 +205,143 @@ class FileStorageServiceTest(TestCase):
                 CopySource={'Bucket': 'user-files', 'Key': old_key}
             )
 
-    def test_list_files(self):
-        pass
+    def test_create_folder_returns_true_on_success(self):
+        folder_key = "user-1-files/projects/"
+
+        with patch.object(self.service.s3_client, 'put_object') as mock_put:
+            result = self.service.create_folder(
+                user_id=1,
+                folder_s3_key=folder_key
+            )
+            self.assertTrue(result)
+            mock_put.assert_called_once_with(
+                Bucket='user-files',
+                Key=folder_key,
+                Body=b'',
+            )
+
+    def test_create_folder_returns_false_on_client_error(self):
+        folder_key = "user-1-files/projects/"
+
+        with patch.object(self.service.s3_client, 'put_object') as mock_put:
+            mock_put.side_effect = ClientError(
+                {'Error': {'Code': 'ClientError'}},
+                'create_folder'
+            )
+            result = self.service.create_folder(
+                user_id=1,
+                folder_s3_key=folder_key
+            )
+            self.assertFalse(result)
+
+    def test_create_folder_return_false_on_empty_folder_s3_key(self):
+        folder_key = ""
+
+        with patch.object(self.service.s3_client, 'put_object') as mock_put:
+            result = self.service.create_folder(
+                user_id=1,
+                folder_s3_key=folder_key
+            )
+            self.assertFalse(result)
+            mock_put.assert_not_called()
+
+    def test_create_folder_return_false_on_invalid_prefix(self):
+        invalid_prefix = "user-2-files/projects/"
+        with patch.object(self.service.s3_client, 'put_object') as mock_put:
+            result = self.service.create_folder(
+                user_id=1,
+                folder_s3_key=invalid_prefix
+            )
+            self.assertFalse(result)
+            mock_put.assert_not_called()
+
+    def test_list_files_returns_list_of_items_on_success(self):
+        user_id = 1
+        s3_prefix = "user-1-files/"
+
+        response = {
+            "CommonPrefixes": [{'Prefix': "user-1-files/docs/"}],
+            "Contents": [
+                {"Key": "user-1-files/docs/file1.txt", "Size": 1024, "LastModified": '2025-01-01'}
+            ]
+        }
+        with patch.object(self.service.s3_client, 'list_objects_v2') as mock_list :
+            mock_list.return_value = response
+
+            items = self.service.list_files(
+                user_id=user_id,
+                prefix=s3_prefix
+            )
+            self.assertTrue(items)
+            self.assertIsInstance(items, list)
+            self.assertEqual(len(items), 2)
+
+    def test_list_files_returns_empty_list_on_client_error(self):
+        with patch.object(self.service.s3_client, 'list_objects_v2') as mock_list :
+            mock_list.side_effect = ClientError(
+                {'Error': {'Code': 'ClientError'}},
+                'list_objects_v2'
+            )
+            items = self.service.list_files(
+                user_id=1,
+                prefix="user-1-files/"
+            )
+            self.assertEqual(items, [])
+
+    def test_list_files_return_empty_list_on_invalid_prefix(self):
+        user_id = 1
+        s3_prefix = "user-2-files/"
+
+        response = {
+            "CommonPrefixes": [{'Prefix': "user-1-files/docs/"}],
+            "Contents": [
+                {"Key": "user-1-files/docs/file1.txt", "Size": 1024, "LastModified": '2025-01-01'}
+            ]
+        }
+        with patch.object(self.service.s3_client, 'list_objects_v2') as mock_list:
+            mock_list.return_value = response
+
+            items = self.service.list_files(
+                user_id=user_id,
+                prefix=s3_prefix
+            )
+            self.assertEqual(items, [])
+            self.assertIsInstance(items, list)
+
+    def test_list_files_correctly_gather_items_for_folders(self):
+        response = {
+            "CommonPrefixes": [
+                {'Prefix': "user-1-files/docs/"},
+                {'Prefix': "user-1-files/sub/"}
+            ],
+            "Contents": []
+        }
+
+        with patch.object(self.service.s3_client, 'list_objects_v2') as mock_list:
+            mock_list.return_value = response
+            items = self.service.list_files(user_id=1, prefix="user-1-files/")
+
+            folders =[item for item in items if item['type'] == 'folder']
+            self.assertEqual(folders[0]['name'], 'docs')
+            self.assertEqual(folders[1]['name'], 'sub')
+
+    def test_list_files_correctly_gathers_files(self):
+        current_path = "user-1-files/docs/"
+        response = {
+            'CommonPrefixes': [],
+            'Contents': [
+                {'Key': f'{current_path}report.pdf', 'Size': 2048, 'LastModified': '2025-01-01'},
+                {'Key': f'{current_path}image.png', 'Size': 4096, 'LastModified': '2025-01-02'}
+            ]
+        }
+
+        with patch.object(self.service.s3_client, 'list_objects_v2') as mock_list:
+            mock_list.return_value = response
+
+            items = self.service.list_files(user_id=1, prefix=current_path)
+
+            files = [item for item in items if item['type'] == 'file']
+            self.assertEqual(len(files), 2)
+            self.assertEqual(files[0]['name'], 'report.pdf')
+            self.assertEqual(files[1]['name'], 'image.png')
+

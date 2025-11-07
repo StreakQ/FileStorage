@@ -83,7 +83,7 @@ class FileStorageService:
     def list_files(self, user_id: int, prefix: str = '') -> list[dict]:
         """
         Получает список файлов и папок.
-        Ожидается, что `prefix` — это полный путь, например: user-1-files/www/
+        Ожидается, что prefix - это полный путь, например: user-1-files/www/
         """
 
         s3_prefix = prefix.rstrip('/') + '/' if prefix else f"user-{user_id}-files/"
