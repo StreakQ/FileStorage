@@ -3,7 +3,7 @@ from django.urls import reverse
 from django.views.decorators.csrf import csrf_protect
 from django.http import Http404, StreamingHttpResponse
 from django.contrib.auth.decorators import login_required
-from files.services.fileStorage_service import FileStorageService
+from files.services.file_storage_service import FileStorageService
 from django.conf import settings
 from django.contrib import messages
 import logging
@@ -12,7 +12,6 @@ from typing import List, Dict
 
 logger = logging.getLogger(__name__)
 
-service = FileStorageService()
 
 bucket_name = settings.AWS_STORAGE_BUCKET_NAME
 
@@ -34,6 +33,7 @@ def home_redirect_view(request):
 @csrf_protect
 @login_required
 def file_manager_view(request):
+    service = FileStorageService()
     try:
         user = request.user
         user_id = user.id
@@ -74,6 +74,8 @@ def file_manager_view(request):
 @login_required
 @csrf_protect
 def file_upload_view(request):
+    service = FileStorageService()
+
     if request.method == 'POST':
         user_id = request.user.id
         files = request.FILES.getlist('files')
@@ -103,6 +105,7 @@ def file_upload_view(request):
 @login_required
 @csrf_protect
 def file_download_view(request, s3_key):
+    service = FileStorageService()
     """
     Позволяет пользователю скачать файлы из облака
     :param s3_key:
@@ -146,6 +149,7 @@ def file_download_view(request, s3_key):
 @login_required
 @csrf_protect
 def file_delete_view(request, s3_key):
+    service = FileStorageService()
     """
     Позволяет пользователю удалить файл
     :param s3_key:
@@ -179,6 +183,7 @@ def file_delete_view(request, s3_key):
 @login_required
 @csrf_protect
 def file_rename_view(request, s3_key):
+    service = FileStorageService()
     """
     Позволяет пользователю переименовать файл
     """
@@ -215,6 +220,7 @@ def file_rename_view(request, s3_key):
 @login_required
 @csrf_protect
 def create_folder_view(request):
+    service = FileStorageService()
     if request.method == "POST":
         user_id = request.user.id
         folder_name = request.POST.get('folder_name', '').strip()

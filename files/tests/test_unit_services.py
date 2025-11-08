@@ -1,7 +1,7 @@
 from unittest.mock import patch
 from botocore.exceptions import ClientError
 from django.test import TestCase
-from files.services.fileStorage_service import FileStorageService
+from files.services.file_storage_service import FileStorageService
 
 
 class FileStorageServiceTest(TestCase):

@@ -12,7 +12,7 @@ django.setup() # <- Эта строка критически важна и до�
 
 # --- ИМПОРТ МОДУЛЕЙ ПОСЛЕ django.setup() ---
 # (Хотя импорт модуля сам по себе не должен вызывать обращение к settings до создания экземпляра)
-from files.services.fileStorage_service import FileStorageService
+from files.services.file_storage_service import FileStorageService
 # --- ЛОГИКА ТЕСТИРОВАНИЯ ВНУТРИ ФУНКЦИИ ---
 def run_tests():
     print("--- Тестирование подключения к MinIO ---")
