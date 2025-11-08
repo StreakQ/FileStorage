@@ -3,22 +3,30 @@ from django.conf import settings
 from botocore.exceptions import ClientError
 import logging
 from typing import Union, BinaryIO
+import traceback
 
 logger = logging.getLogger(__name__)
 
 
 class FileStorageService:
     def __init__(self):
-        """Инициализирует сервис хранения файлов"""
-        self.s3_client = boto3.client(
-            's3',
-            endpoint_url=settings.AWS_S3_ENDPOINT_URL,
-            aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
-            aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
-            region_name=settings.AWS_S3_REGION_NAME,
-        )
+        session = boto3.session.Session()
         self.bucket_name = settings.AWS_STORAGE_BUCKET_NAME
-        self._ensure_bucket_exists()
+        # Только если НЕ в тестах — использовать MinIO
+        if not settings.TESTING:
+            self.s3_client = session.client(
+                's3',
+                aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+                aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
+                endpoint_url=settings.AWS_S3_ENDPOINT_URL,
+                region_name=settings.AWS_S3_REGION_NAME,
+            )
+        else:
+            # В тестах — дефолтный клиент (для moto)
+            self.s3_client = session.client('s3', region_name='us-east-1')
+
+        if not settings.TESTING:
+            self._ensure_bucket_exists()
 
     def _ensure_bucket_exists(self) -> None:
         """

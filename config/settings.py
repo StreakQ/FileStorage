@@ -1,7 +1,7 @@
 import os
 from pathlib import Path
 from decouple import Config, RepositoryEnv
-
+import sys
 
 ENV_PATH = Path(__file__).parent.resolve().parent / "env" / "local.env"
 config = Config(RepositoryEnv(str(ENV_PATH)))
@@ -131,6 +131,7 @@ TIME_ZONE = 'UTC'
 USE_I18N = True
 USE_TZ = True
 
+TESTING = 'test' in sys.argv or 'pytest' in sys.modules
 
 # Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
