@@ -232,6 +232,9 @@ def create_folder_view(request):
             messages.error(request, 'Имя папки не может быть пустым')
             return redirect_with_path(current_path or f"user-{user_id}-files/")
 
+        if not current_path.startswith(f"user-{user_id}-files"):
+            raise Http404("Доступ запрещен")
+
         if not current_path.endswith('/'):
             current_path += '/'
         full_path = f"{current_path}{folder_name}/"
