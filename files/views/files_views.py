@@ -202,7 +202,7 @@ def file_rename_view(request):
 
         if not s3_key.startswith(expected_prefix):
             logger.warning(f"Попытка доступа к чужому файлу: {s3_key}")
-            return redirect('files:file_manager')
+            raise Http404("Доступ запрещён")
 
         try:
             success = service.rename_object(
