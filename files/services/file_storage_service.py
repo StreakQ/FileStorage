@@ -12,7 +12,6 @@ class FileStorageService:
     def __init__(self):
         session = boto3.session.Session()
         self.bucket_name = settings.AWS_STORAGE_BUCKET_NAME
-        # Только если НЕ в тестах — использовать MinIO
         if not settings.TESTING:
             self.s3_client = session.client(
                 's3',
@@ -22,7 +21,6 @@ class FileStorageService:
                 region_name=settings.AWS_S3_REGION_NAME,
             )
         else:
-            # В тестах — дефолтный клиент (для moto)
             self.s3_client = session.client('s3', region_name='us-east-1')
 
         if not settings.TESTING:
@@ -202,6 +200,11 @@ class FileStorageService:
 
         :return: True, если переименование прошло успешно, иначе False.
         """
+        print(f"[rename] Получен s3_key: '{s3_key}'")
+
+        is_folder = s3_key.endswith('/')
+        print(f"[rename] is_folder = {is_folder}")
+
         if not new_name:
             logger.error(f"Новое имя не может быть пустым")
             return False
@@ -211,9 +214,12 @@ class FileStorageService:
 
         operations_count = 0
 
+        print(f"[rename] Обрабатываем папку: {old_full_key}, is_folder={is_folder}")
+
         try:
             if is_folder:
-                old_prefix = old_full_key
+                old_prefix = s3_key
+                print(f"[rename] Используем Prefix для list_objects_v2: '{old_prefix}'")
                 parent_prefix_parts = old_prefix.rstrip('/').split('/')[:-1]
                 parent_prefix = '/'.join(parent_prefix_parts)
                 if parent_prefix:
@@ -240,7 +246,7 @@ class FileStorageService:
                             self.s3_client.delete_object(Bucket=self.bucket_name, Key=old_object_key)
                             operations_count += 1
 
-                logger.info(f"Папка {old_prefix} переименована в {new_prefix}, обработано {operations_count} объектов")
+                print(f"Папка {old_prefix} переименована в {new_prefix}, обработано {operations_count} объектов")
 
             else:
                 old_key = old_full_key
@@ -256,16 +262,16 @@ class FileStorageService:
                 self.s3_client.copy_object(Bucket=self.bucket_name, Key=new_key, CopySource=copy_source)
                 self.s3_client.delete_object(Bucket=self.bucket_name, Key=old_key)
 
-                logger.info(f"Файл {old_key} переименован в {new_key}")
+                print(f"Файл {old_key} переименован в {new_key}")
 
             return True
 
         except ClientError as e:
-            logger.error(f"Ошибка при переименовании объекта '{old_full_key}': {e}")
+            print(f"Ошибка при переименовании объекта '{old_full_key}': {e}")
             return False
 
         except Exception as e:
-            logger.error(f"Неожиданная ошибка при переименовании объекта '{old_full_key}': {e}")
+            print(f"Неожиданная ошибка при переименовании объекта '{old_full_key}': {e}")
             return False
 
     def create_folder(self, user_id: int, folder_s3_key: str) -> bool:

@@ -182,39 +182,47 @@ def file_delete_view(request, s3_key):
 
 @login_required
 @csrf_protect
-def file_rename_view(request, s3_key):
+def file_rename_view(request):
     service = FileStorageService()
-    """
-    Позволяет пользователю переименовать файл
-    """
+
     if request.method == "POST":
         user_id = request.user.id
         expected_prefix = f"user-{user_id}-files/"
+
+        # Получаем данные из формы
+        s3_key = request.POST.get('s3_key', '').strip()
         new_name = request.POST.get('new_name', '').strip()
 
+        # Проверки
         if not new_name:
             return redirect('files:file_manager')
 
+        if not s3_key:
+            return redirect('files:file_manager')
+
+        # Защита: только внутри своей папки
         if not s3_key.startswith(expected_prefix):
-            raise Http404("Файл не найден или доступ запрещен")
+            logger.warning(f"Попытка доступа к чужому файлу: {s3_key} (пользователь {user_id})")
+            return redirect('files:file_manager')
 
         try:
-            service.rename_object(
+            success = service.rename_object(
                 user_id=user_id,
                 s3_key=s3_key,
-                new_name=new_name,
+                new_name=new_name
             )
-
-            return redirect('files:file_manager')
+            if success:
+                messages.success(request, f'Объект "{new_name}" успешно переименован.')
+            else:
+                messages.error(request, 'Не удалось переименовать объект.')
 
         except Exception as e:
-            logger.error(f"Ошибка при переименовании файла {s3_key}: {e}", exc_info=True)
+            logger.error(f"Ошибка при переименовании {s3_key}: {e}", exc_info=True)
+            messages.error(request, 'Произошла ошибка на сервере.')
 
-            return redirect('files:file_manager')
+        return redirect_with_path(s3_key.rsplit('/', 1)[0] + '/')  # редирект в родительскую папку
 
-    else:
-
-        return redirect('files:file_manager')
+    return redirect('files:file_manager')
 
 
 @login_required

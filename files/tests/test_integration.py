@@ -1,3 +1,4 @@
+from botocore.exceptions import ClientError
 from django.test import TestCase
 from django.contrib.auth.models import User
 from moto import mock_aws
@@ -51,12 +52,6 @@ class TestIntegrationServices(TestCase):
         """GET - запрос на /create_folder/ должен перенаправлять"""
         response = self.client.get('/files/create_folder/')
         self.assertRedirects(response, '/files/manager/')
-
-    def test_rename_file_success(self):
-        pass
-
-    def test_rename_folder_success(self):
-        pass
 
     def test_rename_with_empty_new_name_does_nothing(self):
         pass
