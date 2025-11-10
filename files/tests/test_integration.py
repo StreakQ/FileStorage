@@ -53,6 +53,60 @@ class TestIntegrationServices(TestCase):
         response = self.client.get('/files/create_folder/')
         self.assertRedirects(response, '/files/manager/')
 
+    def test_rename_file_success(self):
+        # Создаём файл
+        self.s3_client.put_object(
+            Bucket='user-files',
+            Key='user-1-files/docs/report.pdf',
+            Body=b'Hello World!'
+        )
+
+        data = {
+            's3_key': 'user-1-files/docs/report.pdf',
+            'new_name': 'new_name.pdf'
+        }
+
+        response = self.client.post('/files/rename/', data, follow=True)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'files/file_manager.html')
+
+        # Проверяем новый файл
+        new_obj = self.s3_client.get_object(
+            Bucket='user-files',
+            Key='user-1-files/docs/new_name.pdf'
+        )
+        self.assertEqual(new_obj['Body'].read(), b'Hello World!')
+
+        # Старого нет
+        with self.assertRaises(ClientError):
+            self.s3_client.get_object(Bucket='user-files', Key='user-1-files/docs/report.pdf')
+
+    def test_rename_folder_success(self):
+        # Создаём папку и файл
+        self.s3_client.put_object(Bucket='user-files', Key='user-1-files/docs/', Body=b'')
+        self.s3_client.put_object(Bucket='user-files', Key='user-1-files/docs/report.pdf', Body=b'content')
+
+        data = {
+            's3_key': 'user-1-files/docs/',
+            'new_name': 'new_docs'
+        }
+
+        response = self.client.post('/files/rename/', data, follow=True)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'files/file_manager.html')
+
+        # Проверяем новые объекты
+        self.s3_client.get_object(Bucket='user-files', Key='user-1-files/new_docs/')
+        self.s3_client.get_object(Bucket='user-files', Key='user-1-files/new_docs/report.pdf')
+
+        # Старых нет
+        with self.assertRaises(ClientError):
+            self.s3_client.get_object(Bucket='user-files', Key='user-1-files/docs/')
+        with self.assertRaises(ClientError):
+            self.s3_client.get_object(Bucket='user-files', Key='user-1-files/docs/report.pdf')
+
     def test_rename_with_empty_new_name_does_nothing(self):
         pass
 

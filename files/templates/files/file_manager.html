@@ -82,7 +82,7 @@
                                                 <button type="button" class="dropdown-item"
                                                         data-bs-toggle="modal"
                                                         data-bs-target="#renameModal"
-                                                        data-full-name ="{{ item.full_key }}"
+                                                        data-s3-key ="{{ item.full_key }}"
                                                         data-item-name ="{{ item.name }}">
                                                 Переименовать
                                                 </button>
@@ -112,36 +112,43 @@
                 </div>
             {% endif %}
         </div>
-   <!--Модальное окно для переименовывания -->
-    <div class="modal fade" id="renameModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Переименовывание объекта</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                     <form method="post" id="renameForm" style="display: inline">
-                         {% csrf_token %}
-                        <div class="mb-3"><input type="text" class="form-control" id="newName" name="new_name" placeholder="Введите новое имя"></div>
-                     </form>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-primary" id="saveBtn">Сохранить</button>
-                    <button type="button" class="btn btn-secondary" data-bs-dissmiss="modal">Отмена</button>
+       <!-- Модальное окно для переименовывания -->
+        <div class="modal fade" id="renameModal" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Переименовать объект</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form method="post" id="renameForm">
+                            {% csrf_token %}
+                            <input type="hidden" id="s3KeyInput" name="s3_key" value="">
+                            <div class="mb-3">
+                                <input type="text" class="form-control" id="newName" name="new_name" placeholder="Введите новое имя" required>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-primary" id="saveBtn">Сохранить</button>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                    </div>
                 </div>
             </div>
         </div>
-    </div>
 
    </div>
 <script>
-document.querySelectorAll('[data-bs-toggle="modal"][data-full-name]').forEach(button =>{
+document.querySelectorAll('[data-bs-toggle="modal"][data-s3-key]').forEach(button =>{
     button.addEventListener('click', function (){
-        const fullKey = this.getAttribute('data-full-name')
+        const s3Key = this.getAttribute('data-s3-key')
+        const itemName = this.getAttribute('data-item-name');
         const form = document.getElementById('renameForm')
 
-        form.action = `/files/rename/${encodeURIComponent(fullKey)}/`
+        document.getElementById('s3KeyInput').value = s3Key;
+        document.getElementById('newName').value = itemName;
+
+        form.action = "{% url 'files:rename' %}";
     })
 })
 
@@ -152,7 +159,6 @@ document.getElementById('saveBtn').addEventListener('click', function (){
 })
 
 
-///Скрипт для создания папки
     const creationBtn = document.getElementById('showCreateForm')
     const createForm = document.getElementById('createFolderForm')
     const cancelCreate = document.getElementById('cancelCreate')

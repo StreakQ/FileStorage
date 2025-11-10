@@ -189,20 +189,19 @@ def file_rename_view(request):
         user_id = request.user.id
         expected_prefix = f"user-{user_id}-files/"
 
-        # Получаем данные из формы
         s3_key = request.POST.get('s3_key', '').strip()
         new_name = request.POST.get('new_name', '').strip()
 
-        # Проверки
         if not new_name:
+            messages.error(request, 'Имя не может быть пустым')
             return redirect('files:file_manager')
 
         if not s3_key:
+            messages.error(request, 'Не указан объект для переименования')
             return redirect('files:file_manager')
 
-        # Защита: только внутри своей папки
         if not s3_key.startswith(expected_prefix):
-            logger.warning(f"Попытка доступа к чужому файлу: {s3_key} (пользователь {user_id})")
+            logger.warning(f"Попытка доступа к чужому файлу: {s3_key}")
             return redirect('files:file_manager')
 
         try:
@@ -220,7 +219,8 @@ def file_rename_view(request):
             logger.error(f"Ошибка при переименовании {s3_key}: {e}", exc_info=True)
             messages.error(request, 'Произошла ошибка на сервере.')
 
-        return redirect_with_path(s3_key.rsplit('/', 1)[0] + '/')  # редирект в родительскую папку
+        parent_path = s3_key.rsplit('/', 1)[0] + '/'
+        return redirect_with_path(parent_path)
 
     return redirect('files:file_manager')
 

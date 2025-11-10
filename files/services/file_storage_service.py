@@ -224,7 +224,7 @@ class FileStorageService:
                 parent_prefix = '/'.join(parent_prefix_parts)
                 if parent_prefix:
                     parent_prefix += '/'
-                new_prefix = f"{parent_prefix}{new_name}"
+                new_prefix = f"{parent_prefix}{new_name}/"
 
                 paginator = self.s3_client.get_paginator('list_objects_v2')
                 pages = paginator.paginate(Bucket=self.bucket_name, Prefix=old_prefix)
