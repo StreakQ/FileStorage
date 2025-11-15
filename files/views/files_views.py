@@ -51,7 +51,6 @@ def file_manager_view(request):
             logger.warning(f"Подмена пути: {current_path} → принудительно установлен {base_prefix}")
             current_path = base_prefix
 
-
         if not current_path.endswith('/'):
             current_path += '/'
 
