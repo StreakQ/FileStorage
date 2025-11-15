@@ -1,6 +1,7 @@
 from botocore.exceptions import ClientError
 from django.test import TestCase
 from django.contrib.auth.models import User
+from django.urls import reverse
 from moto import mock_aws
 import boto3
 from unittest.mock import patch
@@ -126,6 +127,63 @@ class TestIntegrationServices(TestCase):
     def test_rename_object_view_get_request_redirects(self):
         response = self.client.get('/files/rename/')
         self.assertRedirects(response, '/files/manager/')
+
+    def test_delete_file_success(self):
+        pass
+
+    def test_delete_folder_success(self):
+        pass
+
+    def test_delete_other_user_files_returns_404(self):
+        pass
+
+    def test_delete_view_get_request_redirects(self):
+        pass
+
+    def test_download_file_success(self):
+        pass
+
+    def test_download_file_returns_404_on_invalid_prefix(self):
+        self.s3_client.put_object(Bucket='user-files',
+                                  Key='user-2-files/docs/report.pdf',
+                                  Body=b'Hello World!')
+
+        response = self.client.get('/files/download/user-2-files/docs/report.pdf/')
+
+        self.assertEqual(response.status_code, 404)
+
+    def test_download_file_returns_404_on_nonexistent_file(self):
+        self.s3_client.put_object(Bucket='user-files',
+                                  Key='user-1-files/docs/report.pdf',
+                                  Body=b'Hello World!')
+
+        response = self.client.get('/files/download/user-1-files/docs/repo.pdf/')
+
+        self.assertEqual(response.status_code, 404)
+
+    def test_download_view_allows_only_get_requests(self):
+        response = self.client.post('/files/download/user-1-files/docs/report.pdf/')
+        self.assertEqual(response.status_code, 404)
+
+    def test_download_view_sets_correct_headers(self):
+        self.s3_client.put_object(Bucket='user-files',
+                                  Key='user-1-files/docs/report.pdf',
+                                  Body=b'Hello World!')
+
+        url = reverse('files:download', kwargs={'s3_key': "user-1-files/docs/report.pdf"})
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response['Content-Disposition'], 'attachment; filename=report.pdf')
+
+    def test_upload_view_get_request_redirects(self):
+        pass
+
+    def test_upload_files_success(self):
+        pass
+
+    def test_upload_files_error(self):
+        pass
 
     def test_file_manager_requires_login(self):
         self.client.logout()

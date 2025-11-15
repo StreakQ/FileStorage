@@ -111,7 +111,6 @@ def file_download_view(request, s3_key):
     :param s3_key:
     :param request:
     """
-
     user_id = request.user.id
     expected_prefix = f"user-{user_id}-files/"
 
@@ -151,7 +150,7 @@ def file_download_view(request, s3_key):
 def file_delete_view(request, s3_key):
     service = FileStorageService()
     """
-    Позволяет пользователю удалить файл
+    Позволяет пользователю удалить файл или папку
     :param s3_key:
     :param request:
     :return:
