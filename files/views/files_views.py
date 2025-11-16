@@ -1,7 +1,7 @@
 from django.shortcuts import render, redirect
 from django.urls import reverse
 from django.views.decorators.csrf import csrf_protect
-from django.http import Http404, StreamingHttpResponse
+from django.http import Http404, StreamingHttpResponse, HttpResponseNotAllowed
 from django.contrib.auth.decorators import login_required
 from files.services.file_storage_service import FileStorageService
 from django.conf import settings
@@ -98,7 +98,7 @@ def file_upload_view(request):
 
         return redirect_with_path(current_path)
 
-    return redirect('files:file_manager')
+    return HttpResponseNotAllowed(405)
 
 
 @login_required
@@ -175,7 +175,7 @@ def file_delete_view(request, s3_key):
 
         return redirect('files:file_manager')
     else:
-        return redirect('files:file_manager')
+        return HttpResponseNotAllowed(["POST"])
 
 
 @login_required

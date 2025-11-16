@@ -3,6 +3,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from django.contrib.auth.models import User
 from django.urls import reverse
+from urllib.parse import quote
 from moto import mock_aws
 import boto3
 from unittest.mock import patch
@@ -52,7 +53,7 @@ class TestIntegrationServices(TestCase):
 
     def test_create_folder_view_get_request_redirects(self):
         """GET - запрос на /create_folder/ должен перенаправлять"""
-        response = self.client.get('/files/create_folder/')
+        response = self.client.get(reverse('files:create_folder'))
         self.assertRedirects(response, '/files/manager/')
 
     def test_rename_file_success(self):
@@ -126,7 +127,7 @@ class TestIntegrationServices(TestCase):
         self.assertTemplateUsed(response, 'files/file_manager.html')
 
     def test_rename_object_view_get_request_redirects(self):
-        response = self.client.get('/files/rename/')
+        response = self.client.get(reverse('files:rename'))
         self.assertRedirects(response, '/files/manager/')
 
     def test_delete_file_success(self):
@@ -174,9 +175,10 @@ class TestIntegrationServices(TestCase):
 
         self.assertEqual(response.status_code, 404)
 
-    def test_delete_view_get_request_redirects(self):
-        response = self.client.get('/files/create_folder/')
-        self.assertRedirects(response, '/files/manager/')
+    def test_delete_view_allows_only_post_requests(self):
+        url = reverse('files:delete', kwargs={'s3_key': 'user-1-files/docs/report.pdf'})
+        response = self.client.get(url,follow=True)
+        self.assertEqual(response.status_code, 405)
 
     def test_download_file_success(self):
         self.s3_client.put_object(Bucket='user-files',
@@ -224,7 +226,7 @@ class TestIntegrationServices(TestCase):
         url = reverse('files:delete', kwargs={'s3_key': 'user-1-files/docs/report.pdf'})
         response = self.client.get(url)
 
-        self.assertRedirects(response,'/files/manager/')
+        self.assertEqual(response.status_code, 405)
 
     def test_upload_files_success(self):
         file1 = SimpleUploadedFile('file1.txt', b'Hello World!', 'text/plain')
@@ -265,3 +267,39 @@ class TestIntegrationServices(TestCase):
         response = self.client.get('/files/manager/')
         self.assertEqual(response.status_code, 302)
         self.assertIn('/users/login', response.url)
+
+    def test_file_manager_build_correct_breadcrumbs(self):
+        url = '/files/manager/?path=' + quote('user-1-files/projects/docs/')
+        response = self.client.get(url)
+
+        breadcrumbs = response.context['breadcrumbs']
+        self.assertEqual(len(breadcrumbs), 3)
+        self.assertEqual(breadcrumbs[1]['name'], 'projects')
+        self.assertEqual(breadcrumbs[2]['name'], 'docs')
+
+    def test_file_manager_sets_current_path_from_query(self):
+        encoded_path = quote('user-1-files/projects/docs/')
+        response = self.client.get('/files/manager/?path=' + encoded_path)
+
+        self.assertEqual(response.context['current_path'], 'user-1-files/projects/docs/')
+
+    def test_file_manager_context_contain_required_keys(self):
+        response = self.client.get('/files/manager/')
+        self.assertIn('items', response.context)
+        self.assertIn('breadcrumbs', response.context)
+        self.assertIn('current_path', response.context)
+
+        self.assertIsInstance(response.context['items'], list)
+        self.assertIsInstance(response.context['breadcrumbs'], list)
+        self.assertIsInstance(response.context['current_path'], str)
+
+    @patch('files.services.file_storage_service.FileStorageService.list_files')
+    def test_file_manager_handles_empty_s3_response(self, mock_list):
+        mock_list.return_value = []
+        response = self.client.get('/files/manager/')
+        items = response.context['items']
+        self.assertEqual(items, [])
+
+
+
+
