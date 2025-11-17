@@ -154,11 +154,14 @@ class FunctionalTest(StaticLiveServerTestCase):
 
         file_input.send_keys(file_path)
 
+        upload_btn = driver.find_element(By.ID, 'uploadBtn')
+        upload_btn.click()
+
         WebDriverWait(driver, 10).until(
-            EC.text_to_be_present_in_element((By.CLASS_NAME, "card-title"), "sample.txt")
+            EC.text_to_be_present_in_element((By.XPATH, "//h5[text()='sample.txt']"), "sample.txt")
         )
 
-        titles = [el.text for el in driver.find_elements(By.CLASS_NAME, "card-title")]
+        titles = [el.text for el in driver.find_elements(By.XPATH, "//h5[text()='sample.txt']")]
         self.assertIn("sample.txt", titles)
 
     def test_user_can_download_file(self):
