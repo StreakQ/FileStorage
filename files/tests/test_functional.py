@@ -66,8 +66,6 @@ class FunctionalTest(StaticLiveServerTestCase):
         self.s3_client.put_object(Bucket='user-files', Key=f'{self.prefix}docs/projects/file.txt', Body=b'content')
         self.s3_client.put_object(Bucket='user-files', Key=f'{self.prefix}file.txt', Body=b'content')
 
-        print("SESSION KEY:", self.session.session_key)
-
     def tearDown(self):
         self.mock.stop()
 
@@ -195,24 +193,51 @@ class FunctionalTest(StaticLiveServerTestCase):
 
         WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.CLASS_NAME, 'card')))
 
-        driver.find_element(By.ID, 'btn-dropdown').click()
-        rename_btn = WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.ID, 'btn-rename-dropdown')))
+        driver.find_element(By.CSS_SELECTOR, '[data-bs-toggle="dropdown"]').click()
+        rename_btn = WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.CSS_SELECTOR,
+                                                                                 '[data-bs-toggle="modal"]')))
         rename_btn.click()
 
         modal = WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.ID, 'renameModal')))
 
         new_name_input = modal.find_element(By.ID, 'newName')
+        new_name_input.clear()
         new_name_input.send_keys("renamed.pdf")
 
-        save_btn = modal.find_element(By.ID, 'saveBtn')
+        save_btn = modal.find_element(By.XPATH, ".//button[text()='Сохранить']")
+        print("Form action (should be empty, defaults to current page):",
+              driver.find_element(By.ID, 'renameForm').get_attribute('action'))
+        print("New name input value:", new_name_input.get_attribute('value'))
+        print("Current URL before click:", driver.current_url)
+
         save_btn.click()
+
+        element_to_track = WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located((By.TAG_NAME, "h2"))  # Или другой уникальный элемент
+        )
+        initial_h2_text = element_to_track.text
+        print(f"Initial H2 text: {initial_h2_text}")
 
         WebDriverWait(driver, 10).until(EC.invisibility_of_element_located(modal))
 
-        WebDriverWait(driver, 10).until(EC.text_to_be_present_in_element((By.CLASS_NAME, 'card-title'), 'renamed.pdf'))
+        #driver.refresh()
 
-        card_titles = [el for el in driver.find_elements(By.CLASS_NAME, 'card-title')]
-        self.assertIn("renamed.pdf", card_titles)
+        try:
+            WebDriverWait(driver, 20).until(  # Увеличим таймаут, так как теперь ждём полной загрузки после редиректа
+                EC.presence_of_element_located((By.XPATH, f"//h5[normalize-space(text())='renamed.txt']"))
+                # Или используйте card-title
+            )
+            print("Элемент с новым именем найден после редиректа.")
+        except:
+            print("Текущий URL после ожидания:", driver.current_url)
+            print("HTML страницы:")
+            print(driver.page_source)  # Для отладки
+            raise AssertionError("Новое имя 'renamed.txt' не появилось после редиректа.")
+
+            # Проверим, что элемент с новым именем действительно есть
+        card_titles_after = [elem.text for elem in
+                             driver.find_elements(By.CLASS_NAME, 'card-title')]  # Или другой селектор для имени
+        self.assertIn("renamed.txt", card_titles_after)
 
     def test_user_can_delete_object(self):
         """Пользователь удаляет файл или папку(рекурсивно)"""
@@ -222,8 +247,9 @@ class FunctionalTest(StaticLiveServerTestCase):
 
         WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.CLASS_NAME, 'card')))
 
-        driver.find_element(By.ID, 'btn-dropdown').click()
-        delete_btn = WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.ID, 'delete-submit')))
+        driver.find_element(By.CSS_SELECTOR, '[data-bs-toggle="dropdown"]').click()
+        delete_btn = WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.CSS_SELECTOR,
+                                                                                 '[data-type="submit-delete"]')))
         delete_btn.click()
 
         WebDriverWait(driver, 10).until(EC.alert_is_present())
@@ -231,7 +257,7 @@ class FunctionalTest(StaticLiveServerTestCase):
         alert.accept()
 
         try:
-            WebDriverWait(driver, 10).until(EC.invisibility_of_element_located((By.XPATH, '//h5[text()="report.pdf"]')))
+            WebDriverWait(driver, 10).until(EC.invisibility_of_element_located((By.XPATH, '//h5[text()="file.txt"]')))
 
         except:
             driver.refresh()
@@ -240,7 +266,7 @@ class FunctionalTest(StaticLiveServerTestCase):
             )
 
         card_titles = [el.text for el in driver.find_elements(By.CLASS_NAME, "card-title")]
-        self.assertNotIn("report.pdf", card_titles)
+        self.assertNotIn("file.txt", card_titles)
 
     def test_user_can_see_breadcrumbs_inside_folder(self):
         """Пользователь видит навигационную цепочку внутри папок"""

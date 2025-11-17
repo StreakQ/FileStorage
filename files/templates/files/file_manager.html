@@ -105,6 +105,7 @@
                                                         {% csrf_token %}
                                                         <button type="submit"
                                                                 class="dropdown-item text-danger"
+                                                                data-type="submit-delete"
                                                                 onclick="return confirm('Удалить файл?')">
                                                             Удалить
                                                         </button>
@@ -168,14 +169,6 @@ document.addEventListener('DOMContentLoaded', function () {
         const instance = bootstrap.Dropdown.getInstance(toggle);
         if (instance) instance.dispose();
         new bootstrap.Dropdown(toggle);
-
-        // Логируем для отладки
-        toggle.addEventListener('shown.bs.dropdown', () => {
-            console.log('Dropdown opened:', toggle);
-        });
-        toggle.addEventListener('hidden.bs.dropdown', () => {
-            console.log('Dropdown closed:', toggle);
-        });
     });
 
     // === 3. Модальное окно переименования ===
