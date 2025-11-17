@@ -64,6 +64,7 @@ class FunctionalTest(StaticLiveServerTestCase):
         self.s3_client.put_object(Bucket='user-files', Key=f'{self.prefix}docs/', Body=b'')
         self.s3_client.put_object(Bucket='user-files', Key=f'{self.prefix}docs/projects/', Body=b'')
         self.s3_client.put_object(Bucket='user-files', Key=f'{self.prefix}docs/projects/file.txt', Body=b'content')
+        self.s3_client.put_object(Bucket='user-files', Key=f'{self.prefix}file.txt', Body=b'content')
 
         print("SESSION KEY:", self.session.session_key)
 
