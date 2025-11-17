@@ -1,185 +1,220 @@
-{%  extends "base.html" %}
+{% extends "base.html" %}
 {% load static %}
 
 {% block title %} Мои файлы {% endblock %}
 
 {% block content %}
-   <div class="container-fluid">
-       <div class="d-flex justify-content-between align-items-center mt-3">
-           <h2>Файлы</h2>
-           <a href="{% url 'users:logout' %}" class="btn btn-outline-primary">Выйти</a>
-       </div>
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mt-3">
+        <h2>Файлы</h2>
+        <a href="{% url 'users:logout' %}" class="btn btn-outline-primary">Выйти</a>
+    </div>
 
-       <!--Форма поиска -->
-       {%   include 'files/partials/search_form.html' %}
+    <!-- Навигационная цепочка -->
+    {% include 'files/partials/breadcrumbs.html' %}
 
-       <!-- Навигационная цепочка-->
-       {% include 'files/partials/breadcrumbs.html' %}
+    <!-- Кнопка создания папки -->
+    <button class="btn btn-primary mt-3" id="showCreateForm">
+        <i class="fas fa-folder-plus"></i> Создать папку
+    </button>
 
-        <!-- Форма загрузки -->
-        {% include 'files/upload.html' %}
+    <!-- Форма создания папки (скрыта по умолчанию) -->
+    <form method="post" action="{% url 'files:create_folder' %}" style="display: none;" id="createFolderForm" class="mt-2">
+        {% csrf_token %}
+        <input type="hidden" name="current_path" value="{{ current_path }}">
+        <div class="input-group">
+            <input type="text" name="folder_name" class="form-control" placeholder="Имя новой папки" required>
+            <button type="submit" class="btn btn-success">Создать</button>
+            <button type="button" class="btn btn-secondary" id="cancelCreate">Отмена</button>
+        </div>
+    </form>
 
+    <!-- Список файлов и папок -->
+    <div class="row mt-3">
+        {% if items %}
+            {% for item in items %}
+                <div class="col-md-3 col-sm-6 mb-3">
+                    <div class="card h-100">
+                        <div class="card-body d-flex flex-column">
+                            <!-- Иконка -->
+                            {% if item.type == 'folder' %}
+                                <i class="fas fa-folder fa-2x text-warning mb-2"></i>
+                            {% else %}
+                                <i class="fas fa-file fa-2x text-primary mb-2"></i>
+                            {% endif %}
 
-        <button class="btn btn-primary mt-3" id="showCreateForm">
-            <i class="fas fa-folder-plus"> Создать папку</i>
-        </button>
+                            <!-- Название -->
+                            <h5 class="card-title">{{ item.name }}</h5>
 
-        <form method="post" action="{% url 'files:create_folder'  %}" style="display: none" id="createFolderForm" class="mt-2">
-            {% csrf_token %}
-            <input type="hidden" name="current_path" value="{{ current_path }}">
-            <div class="input-group">
-                <input type="text" name="folder_name" class="form-control" placeholder="имя новой папки" required>
-                <button type="submit" class="btn btn-success">Создать</button>
-                <button type="button" class="btn btn-secondary" id="cancelCreate">Отмена</button>
-            </div>
-        </form>
-
-        <div class="row mt-3">
-            {% if items %}
-                {% for item in items %}
-                    <div class="col-md-3 col-sm-6 mb-3">
-                        <div class="card h-100">
-                            <div class="card-body d-flex flex-column">
-                                {% if item.type == 'folder' %}
-                                    <i class="fas fa-folder fa-2x text-warning mb-2"></i>
-                                {% else %}
-                                    <i class="fas fa-file fa-2x text-primary mb-2"></i>
-                                {% endif %}
-
-                                <h5 class="card-title">{{ item.name }}</h5>
-
+                            <!-- Информация о файле -->
                             {% if item.type == 'file' %}
                                 <p class="card-text flex-grow-1">
                                     <small class="text-muted">
                                         Размер: {{ item.size|filesizeformat }}<br>
-                                        Изменен: {{ item.last_modified|date:"d.m.Y H:i" }}
+                                        Изменён: {{ item.last_modified|date:"d.m.Y H:i" }}
                                     </small>
                                 </p>
                             {% endif %}
-                                <div class="mt-auto">
-                                    {% if item.type == 'folder' %}
-                                        <div class="d-flex gap-2">
-                                        <a href="{% url 'files:file_manager' %}?path={{ item.full_key|urlencode }}"
-                                        class="btn btn-primary btn-sm"><i class="fas fa-folder-open"> Открыть</i></a>
-                                         <form method="post" action="{% url 'files:delete' s3_key=item.full_key %}">
-                                                    {% csrf_token %}
-                                                    <button type="submit" class="btn btn-danger btn-sm"
-                                                            onclick="return confirm('Вы уверены, что хотите удалить файл?')">
-                                                        <i class="fas fa-trash"></i> Удалить
-                                                    </button>
-                                            </form>
-                                        </div>
-                                    {% else %}
 
-                                        <!-- Кнопки скачать и действия для файла -->
-                                        <a href="{% url 'files:download' s3_key=item.full_key %}" class="btn btn-success btn-sm"
-                                        id="btn-download">
+                            <!-- Действия -->
+                            <div class="mt-auto">
+                                {% if item.type == 'folder' %}
+                                    <!-- Для папки: Открыть и Удалить -->
+                                    <div class="d-flex gap-2">
+                                        <a href="?path={{ item.full_key|urlencode }}" class="btn btn-primary btn-sm">
+                                            <i class="fas fa-folder-open"></i> Открыть
+                                        </a>
+                                        <form method="post" action="{% url 'files:delete' s3_key=item.full_key %}" style="display: inline;">
+                                            {% csrf_token %}
+                                            <button type="submit"
+                                                    class="btn btn-danger btn-sm"
+                                                    onclick="return confirm('Удалить папку?')">
+                                                <i class="fas fa-trash"></i> Удалить
+                                            </button>
+                                        </form>
+                                    </div>
+                                {% else %}
+                                    <!-- Для файла: Скачать и Dropdown -->
+                                    <div class="d-flex gap-2 align-items-center">
+                                        <a href="{% url 'files:download' s3_key=item.full_key %}"
+                                           class="btn btn-success btn-sm">
                                             <i class="fas fa-download"></i> Скачать
                                         </a>
-                                        <button class="btn btn-secondary btn-sm" data-bs-toggle="dropdown" id="btn-dropdown">
-                                            <i class="fas fa-ellipsis-v"></i>
-                                        </button>
 
-                                        <ul class="dropdown-menu">
-                                        <li>
-
-                                                <button type="button" class="dropdown-item" id="btn-rename-dropdown"
-                                                        data-bs-toggle="modal"
-                                                        data-bs-target="#renameModal"
-                                                        data-s3-key ="{{ item.full_key }}"
-                                                        data-item-name ="{{ item.name }}">
-                                                Переименовать
-                                                </button>
-
-                                        </li>
-
-                                        <li>
-                                            <form method="post" action="{% url 'files:delete' s3_key=item.full_key %}" style="display: inline">
-                                                    {% csrf_token %}
-                                                    <button type="submit" class="dropdown-item text-danger" id="delete-submit"
-                                                            onclick="return confirm('Вы уверены, что хотите удалить файл?')">
-                                                        Удалить
+                                        <!-- Dropdown меню -->
+                                        <div class="btn-group">
+                                            <button type="button"
+                                                    class="btn btn-secondary btn-sm dropdown-toggle"
+                                                    data-bs-toggle="dropdown"
+                                                    aria-expanded="false">
+                                                <i class="fas fa-ellipsis-v"></i>
+                                            </button>
+                                            <ul class="dropdown-menu">
+                                                <li>
+                                                    <button type="button"
+                                                            class="dropdown-item"
+                                                            data-bs-toggle="modal"
+                                                            data-bs-target="#renameModal"
+                                                            data-s3-key="{{ item.full_key }}"
+                                                            data-item-name="{{ item.name }}">
+                                                        Переименовать
                                                     </button>
-                                            </form>
-                                        </li>
-
-                                        </ul>
-                                    {% endif %}
-                                </div>
+                                                </li>
+                                                <li>
+                                                    <form method="post" action="{% url 'files:delete' s3_key=item.full_key %}">
+                                                        {% csrf_token %}
+                                                        <button type="submit"
+                                                                class="dropdown-item text-danger"
+                                                                onclick="return confirm('Удалить файл?')">
+                                                            Удалить
+                                                        </button>
+                                                    </form>
+                                                </li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                {% endif %}
                             </div>
                         </div>
                     </div>
-                {% endfor %}
-            {% else %}
-                <div class="col-12">
-                    <p class="text-muted">В этой папке нет объектов</p>
                 </div>
-            {% endif %}
-        </div>
-       <!-- Модальное окно для переименовывания -->
-        <div class="modal fade" id="renameModal" tabindex="-1" aria-hidden="true">
-            <div class="modal-dialog">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title">Переименовать объект</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                    </div>
-                    <div class="modal-body">
-                        <form method="post" id="renameForm">
-                            {% csrf_token %}
-                            <input type="hidden" id="s3KeyInput" name="s3_key" value="">
-                            <div class="mb-3">
-                                <input type="text" class="form-control" id="newName" name="new_name" placeholder="Введите новое имя" required>
-                            </div>
-                        </form>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-primary" id="saveBtn">Сохранить</button>
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
-                    </div>
+            {% endfor %}
+        {% else %}
+            <div class="col-12">
+                <p class="text-muted">В этой папке нет объектов</p>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- Модальное окно переименования -->
+    <div class="modal fade" id="renameModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Переименовать объект</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form method="post" id="renameForm">
+                        {% csrf_token %}
+                        <input type="hidden" id="s3KeyInput" name="s3_key" value="">
+                        <div class="mb-3">
+                            <label for="newName" class="form-label">Новое имя</label>
+                            <input type="text" class="form-control" id="newName" name="new_name" required>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary" id="saveBtn">Сохранить</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
                 </div>
             </div>
         </div>
+    </div>
+</div>
 
-   </div>
+<!-- Единственный JS — только для этого шаблона -->
 <script>
-document.querySelectorAll('[data-bs-toggle="modal"][data-s3-key]').forEach(button =>{
-    button.addEventListener('click', function (){
-        const s3Key = this.getAttribute('data-s3-key')
-        const itemName = this.getAttribute('data-item-name');
-        const form = document.getElementById('renameForm')
+// Ждём полной загрузки DOM
+document.addEventListener('DOMContentLoaded', function () {
+    // === 1. Проверяем Bootstrap ===
+    if (typeof bootstrap === 'undefined') {
+        console.error('Bootstrap не загружен');
+        return;
+    }
 
-        document.getElementById('s3KeyInput').value = s3Key;
-        document.getElementById('newName').value = itemName;
+    // === 2. Принудительная инициализация всех dropdown ===
+    document.querySelectorAll('.dropdown-toggle').forEach(toggle => {
+        const instance = bootstrap.Dropdown.getInstance(toggle);
+        if (instance) instance.dispose();
+        new bootstrap.Dropdown(toggle);
 
-        form.action = "{% url 'files:rename' %}";
-    })
-})
+        // Логируем для отладки
+        toggle.addEventListener('shown.bs.dropdown', () => {
+            console.log('Dropdown opened:', toggle);
+        });
+        toggle.addEventListener('hidden.bs.dropdown', () => {
+            console.log('Dropdown closed:', toggle);
+        });
+    });
 
-document.getElementById('saveBtn').addEventListener('click', function (){
-    const form = document.getElementById('renameForm')
+    // === 3. Модальное окно переименования ===
+    document.querySelectorAll('[data-bs-toggle="modal"][data-s3-key]').forEach(button => {
+        button.addEventListener('click', function () {
+            const s3Key = this.getAttribute('data-s3-key');
+            const itemName = this.getAttribute('data-item-name');
 
-    form.submit()
-})
+            document.getElementById('s3KeyInput').value = s3Key;
+            document.getElementById('newName').value = itemName;
+        });
+    });
 
+    // === 4. Кнопка "Сохранить" в модальном окне ===
+    const saveBtn = document.getElementById('saveBtn');
+    if (saveBtn) {
+        saveBtn.addEventListener('click', function () {
+            document.getElementById('renameForm').submit();
+        });
+    }
 
-    const creationBtn = document.getElementById('showCreateForm')
-    const createForm = document.getElementById('createFolderForm')
-    const cancelCreate = document.getElementById('cancelCreate')
+    // === 5. Форма создания папки ===
+    const creationBtn = document.getElementById('showCreateForm');
+    const createForm = document.getElementById('createFolderForm');
+    const cancelCreate = document.getElementById('cancelCreate');
 
+    if (creationBtn && createForm && cancelCreate) {
+        creationBtn.addEventListener('click', function () {
+            createForm.style.display = 'block';
+            this.style.display = 'none';
+            createForm.querySelector('input[name="folder_name"]').focus();
+        });
 
-    creationBtn.addEventListener('click', function (){
-        createForm.style.display = 'block'
-        this.style.display = 'none'
-        document.querySelector('#createFolderForm input').focus();
-})
-
-    cancelCreate.addEventListener('click',function (){
-        createForm.style.display = 'none'
-        creationBtn.style.display = 'inline-block'
-    })
-
+        cancelCreate.addEventListener('click', function () {
+            createForm.style.display = 'none';
+            creationBtn.style.display = 'inline-block';
+        });
+    }
+});
 </script>
-
 
 {% endblock %}
