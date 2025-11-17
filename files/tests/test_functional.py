@@ -9,9 +9,11 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.chrome.webdriver import WebDriver
 from django.contrib.auth.models import User
 from django.test import override_settings
+from urllib.parse import quote
 from moto import mock_aws
 from webdriver_manager.chrome import ChromeDriverManager
 import os
+from time import sleep
 
 
 @override_settings(ALLOWED_HOSTS=['*'])
@@ -44,6 +46,7 @@ class FunctionalTest(StaticLiveServerTestCase):
             username='testuser',
             password='password123',
             id=1
+
         )
         self.client.login(username="testuser", password="password123")
 
@@ -57,10 +60,10 @@ class FunctionalTest(StaticLiveServerTestCase):
         except Exception:
             pass
 
-        prefix = f"user-{self.id}-files/"
-        self.s3_client.put_object(Bucket='user-files', Key=f'{prefix}docs/', Body=b'')
-        self.s3_client.put_object(Bucket='user-files', Key=f'{prefix}docs/projects/', Body=b'')
-        self.s3_client.put_object(Bucket='user-files', Key=f'{prefix}docs/projects/file.txt', Body=b'content')
+        self.prefix = f"user-{self.user.id}-files/"
+        self.s3_client.put_object(Bucket='user-files', Key=f'{self.prefix}docs/', Body=b'')
+        self.s3_client.put_object(Bucket='user-files', Key=f'{self.prefix}docs/projects/', Body=b'')
+        self.s3_client.put_object(Bucket='user-files', Key=f'{self.prefix}docs/projects/file.txt', Body=b'content')
 
         print("SESSION KEY:", self.session.session_key)
 
@@ -92,7 +95,6 @@ class FunctionalTest(StaticLiveServerTestCase):
 
         print("Current URL:", driver.current_url)
         print("Page title:", driver.title)
-        driver.save_screenshot("debug_page.png")
 
         driver.find_element(By.NAME, 'username').send_keys('newuser')
         driver.find_element(By.NAME, 'email').send_keys("newuser@example.com")
@@ -124,10 +126,12 @@ class FunctionalTest(StaticLiveServerTestCase):
         submit_btn = driver.find_element(By.CSS_SELECTOR, '#createFolderForm button[type = "submit"]')
         submit_btn.click()
 
-        WebDriverWait(driver, 10).until(EC.text_to_be_present_in_element(By.CLASS_NAME, "card-title"),
-                                        "Новая папка")
+        sleep(1)
+        driver.get(f"{self.live_server_url}/files/manager/")
 
-        titles = [el.text for el in driver.find_elements((By.CLASS_NAME, "card-title"))]
+        WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.XPATH, "//h5[text()='Новая папка']")))
+
+        titles = [el.text for el in driver.find_elements(By.XPATH, "//h5[text()='Новая папка']")]
         self.assertIn("Новая папка", titles)
 
     def test_user_can_upload_files(self):
@@ -237,7 +241,7 @@ class FunctionalTest(StaticLiveServerTestCase):
     def test_user_can_see_breadcrumbs_inside_folder(self):
         """Пользователь видит навигационную цепочку внутри папок"""
         driver = self.driver
-        url = f"{self.live_server_url}/files/manager/?path=user-1-files%2Fdocs%2Fprojects%2F"
+        url = f"{self.live_server_url}/files/manager/?path={quote(f'{self.prefix}docs/projects/')}"
 
         driver.get(url)
         self.login_browser()
