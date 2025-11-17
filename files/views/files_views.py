@@ -27,7 +27,10 @@ def home_redirect_view(request):
     url = reverse('file_manager')
     query = urlencode({'path': user_folder})
 
-    return redirect(f"{url}?{query}")
+    if request.user.is_authenticated:
+        return redirect(f"{url}?{query}")
+    else:
+        return redirect('users:login')
 
 
 @csrf_protect

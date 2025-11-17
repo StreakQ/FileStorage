@@ -18,7 +18,7 @@ ALLOWED_HOSTS = config('ALLOWED_HOSTS', default=None, cast=lambda v: [s.strip() 
 
 # Включаем работу с сессиями
 SESSION_ENGINE = "django.contrib.sessions.backends.db"
-SESSION_COOKIE_AGE = 60 * 60 * 24
+SESSION_COOKIE_AGE = 60 * 60
 SESSION_EXPIRE_AT_BROWSER_CLOSE = True
 SESSION_SAVE_EVERY_REQUEST = False
 SESSION_COOKIE_SECURE = False  # True для HTTPS

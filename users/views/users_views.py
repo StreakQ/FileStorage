@@ -29,14 +29,18 @@ def login_view(request):
 def register_view(request):
     if request.method == 'POST':
         username = request.POST.get('username')
-        password = request.POST.get('password')
+        password1 = request.POST.get('password1')
+        password2 = request.POST.get('password2')
         email = request.POST.get('email')
+
+        if password1 != password2:
+            return render(request, "users/register.html", {'error'})
 
         from users.services.auth_service import AuthService
         service = AuthService()
 
         try:
-            user = service.sign_up(username, password, email)
+            user = service.sign_up(username, password1, email)
             login(request, user)
 
             user_folder = f"user-{user.id}-files/"
