@@ -211,13 +211,15 @@ def file_rename_view(request):
 
         s3_key = request.POST.get('s3_key', '').strip()
         new_name = request.POST.get('new_name', '').strip()
+        print(f"s3_key: {s3_key}")
+        print(f"new_name: {new_name}")
 
         if not new_name:
-            messages.error(request, 'Имя не может быть пустым')
+            print(request, 'Имя не может быть пустым')
             return redirect('files:file_manager')
 
         if not s3_key:
-            messages.error(request, 'Не указан объект для переименования')
+            print(request, 'Не указан объект для переименования')
             return redirect('files:file_manager')
 
         if not s3_key.startswith(expected_prefix):
@@ -236,7 +238,7 @@ def file_rename_view(request):
                 messages.error(request, 'Не удалось переименовать объект.')
 
         except Exception as e:
-            logger.error(f"Ошибка при переименовании {s3_key}: {e}", exc_info=True)
+            print(f"Ошибка при переименовании {s3_key}: {e}")
             messages.error(request, 'Произошла ошибка на сервере.')
 
         parent_path = s3_key.rsplit('/', 1)[0] + '/'
@@ -273,7 +275,7 @@ def create_folder_view(request):
             success = service.create_folder(user_id=user_id, folder_s3_key=full_path)
             if success:
                 messages.success(request, f'Папка "{folder_name}" создана')
-                return redirect_with_path(full_path)
+                return redirect_with_path(current_path)
             else:
                 messages.error(request, 'Не удалось создать папку')
                 return redirect_with_path(current_path)
