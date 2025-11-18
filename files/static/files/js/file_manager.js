@@ -32,8 +32,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
             if (s3KeyInput) s3KeyInput.value = s3Key;
             if (newNameInput) newNameInput.value = itemName;
-            console.log(s3Key)
-            console.log(itemName)
 
         });
     });
@@ -43,9 +41,9 @@ document.addEventListener('DOMContentLoaded', function () {
     if (saveBtn) {
         saveBtn.addEventListener('click', function () {
             const renameForm = document.getElementById('renameForm'); // <-- Проверьте ID
-            console.log("Кнопка \"Сохранить\" в модальном окне нажата")
             if (renameForm) {
                  renameForm.submit();
+                 console.log("Форма отправлена")
             } else {
                  console.error("Форма переименования '#renameForm' не найдена.");
             }

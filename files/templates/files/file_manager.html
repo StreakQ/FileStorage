@@ -151,7 +151,7 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <form method="post" id="renameForm">
+                    <form method="post" id="renameForm" action="{% url 'files:rename' %}">
                         {% csrf_token %}
                         <input type="hidden" id="s3KeyInput" name="s3_key" value="">
                         <div class="mb-3">

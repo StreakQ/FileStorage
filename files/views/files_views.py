@@ -30,6 +30,7 @@ def home_redirect_view(request):
 @csrf_protect
 @login_required
 def file_manager_view(request):
+    print(f"--- DEBUG: file_manager_view called, method: {request.method} ---")
     service = FileStorageService()
     try:
         user = request.user
@@ -211,8 +212,6 @@ def file_rename_view(request):
 
         s3_key = request.POST.get('s3_key', '').strip()
         new_name = request.POST.get('new_name', '').strip()
-        print(f"s3_key: {s3_key}")
-        print(f"new_name: {new_name}")
 
         if not new_name:
             print(request, 'Имя не может быть пустым')
