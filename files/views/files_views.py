@@ -23,14 +23,12 @@ def home_redirect_view(request):
     url = reverse('files:file_manager')
     query = urlencode({'path': user_folder})
 
-    # Проверка авторизации уже будет в file_manager_view через @login_required
     return redirect(f"{url}?{query}")
 
 
 @csrf_protect
 @login_required
 def file_manager_view(request):
-    print(f"--- DEBUG: file_manager_view called, method: {request.method} ---")
     service = FileStorageService()
     try:
         user = request.user
@@ -40,7 +38,6 @@ def file_manager_view(request):
         encoded_path = request.GET.get('path', '')
         current_path = unquote(encoded_path) if encoded_path else ''
 
-        logger.debug(f"[file_manager] Получен path из GET: '{current_path}'")
 
         # --- НАЧАЛО: ИЗВЛЕЧЕНИЕ ОТНОСИТЕЛЬНОГО ПУТИ ---
         # Проверяем, начинается ли путь с ожидаемого префикса пользователя

@@ -212,32 +212,17 @@ class FunctionalTest(StaticLiveServerTestCase):
 
         save_btn.click()
 
-        element_to_track = WebDriverWait(driver, 10).until(
-            EC.presence_of_element_located((By.TAG_NAME, "h2"))  # Или другой уникальный элемент
+        WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located((By.TAG_NAME, "h2"))
         )
-        initial_h2_text = element_to_track.text
-        print(f"Initial H2 text: {initial_h2_text}")
-
         WebDriverWait(driver, 10).until(EC.invisibility_of_element_located(modal))
 
-        #driver.refresh()
-
         try:
-            WebDriverWait(driver, 20).until(  # Увеличим таймаут, так как теперь ждём полной загрузки после редиректа
-                EC.presence_of_element_located((By.XPATH, f"//h5[normalize-space(text())='renamed.txt']"))
-                # Или используйте card-title
+            WebDriverWait(driver, 5).until(
+                EC.presence_of_element_located((By.XPATH, f"//h5[text()='renamed.pdf']"))
             )
-            print("Элемент с новым именем найден после редиректа.")
         except:
-            print("Текущий URL после ожидания:", driver.current_url)
-            print("HTML страницы:")
-            print(driver.page_source)  # Для отладки
             raise AssertionError("Новое имя 'renamed.txt' не появилось после редиректа.")
-
-            # Проверим, что элемент с новым именем действительно есть
-        card_titles_after = [elem.text for elem in
-                             driver.find_elements(By.CLASS_NAME, 'card-title')]  # Или другой селектор для имени
-        self.assertIn("renamed.txt", card_titles_after)
 
     def test_user_can_delete_object(self):
         """Пользователь удаляет файл или папку(рекурсивно)"""
