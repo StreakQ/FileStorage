@@ -1,13 +1,21 @@
+<!-- files/templates/files/partials/breadcrumbs.html -->
+{% if breadcrumbs or current_path_relative %}
 <nav aria-label="breadcrumb">
     <ol class="breadcrumb">
-{#        <li class="breadcrumb-item {% if not breadcrumbs %}active {% endif %}" {% if not breadcrumbs %} aria-current="page" {% endif %} >#}
-{#            <a href="{% url 'files:file_manager' %}">Главная</a>#}
-{#        </li>#}
+        <!-- Ссылка на "корень" - главную папку пользователя (user-{id}-files/) -->
+        <li class="breadcrumb-item">
+            <a href="{% url 'files:file_manager' %}?path=user-{{ user.id|urlencode }}-files/">Главная</a>
+        </li>
 
         {% for crumb in breadcrumbs %}
             {% if not forloop.last %}
                 <li class="breadcrumb-item">
-                    <a href="{% url 'files:file_manager' %}?path={{ crumb.url_path|urlencode }}">{{ crumb.name }}</a>
+                    <!-- Формируем путь: base_prefix + относительный_путь_из_crumb -->
+                    <!-- current_path_relative уже содержит user-{id}-files/, добавляем относительный путь -->
+                    <!-- Но на самом деле, в crumb.url_path уже хранится относительный путь до элемента -->
+                    <!-- Поэтому нужно добавить его к base_prefix -->
+                    <!-- Правильный путь для ссылки: user-{id}-files/ + crumb.url_path -->
+                    <a href="{% url 'files:file_manager' %}?path=user-{{ user.id|urlencode }}-files/{{ crumb.url_path|urlencode }}">{{ crumb.name }}</a>
                 </li>
             {% else %}
                 <li class="breadcrumb-item active" aria-current="page">{{ crumb.name }}</li>
@@ -15,3 +23,4 @@
         {% endfor %}
     </ol>
 </nav>
+{% endif %}

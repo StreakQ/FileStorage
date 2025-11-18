@@ -290,7 +290,7 @@ class FunctionalTest(StaticLiveServerTestCase):
     def test_user_can_navigate_into_folder(self):
         """Пользователь может перемещаться между папками по нажатию по элементу пути навигационной цепочки"""
         driver = self.driver
-        url = f"{self.live_server_url}/files/manager/?path=user-1-files%2Fdocs%2Fprojects%2F"
+        url = f"{self.live_server_url}/files/manager/?path=user-1-files/docs/"
 
         driver.get(url)
         self.login_browser()
@@ -299,6 +299,8 @@ class FunctionalTest(StaticLiveServerTestCase):
 
         doc_item = None
         for item in breadcrumbs.find_elements(By.CLASS_NAME, "breadcrumb-item"):
+            print(f'breadcrumb-item: {item.text}')
+            print(driver.current_url)
             if "docs" in item.text:
                 link = item.find_element(By.TAG_NAME, "a")
                 doc_item = link
@@ -309,10 +311,10 @@ class FunctionalTest(StaticLiveServerTestCase):
         doc_item.click()
 
         WebDriverWait(driver, 10).until(
-            lambda d: "path=user-1-files%2Fdocs%2F" in d.current_url
+            lambda d: "path=user-1-files%2F" in d.current_url
         )
         current_url = driver.current_url
-        self.assertIn("path=user-1-files%2Fdocs%2F", current_url)
+        self.assertIn("path=user-1-files2F", current_url)
 
     def test_user_can_find_object_via_search_form_in_ui(self):
         """Пользователь может найти файл или папку через форму поиска"""

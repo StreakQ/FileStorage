@@ -16,21 +16,15 @@ logger = logging.getLogger(__name__)
 bucket_name = settings.AWS_STORAGE_BUCKET_NAME
 
 
-@login_required
 def home_redirect_view(request):
     user_id = request.user.id
     user_folder = f"user-{user_id}-files/"
 
-    from django.urls import reverse
-    from urllib.parse import urlencode
-
-    url = reverse('file_manager')
+    url = reverse('files:file_manager')
     query = urlencode({'path': user_folder})
 
-    if request.user.is_authenticated:
-        return redirect(f"{url}?{query}")
-    else:
-        return redirect('users:login')
+    # Проверка авторизации уже будет в file_manager_view через @login_required
+    return redirect(f"{url}?{query}")
 
 
 @csrf_protect
@@ -45,32 +39,57 @@ def file_manager_view(request):
         encoded_path = request.GET.get('path', '')
         current_path = unquote(encoded_path) if encoded_path else ''
 
-        logger.debug(f"[file_manager] Получен path: '{current_path}'")
+        logger.debug(f"[file_manager] Получен path из GET: '{current_path}'")
 
-        if not current_path or current_path == '/' or current_path.startswith('/'):
-            current_path = base_prefix
+        # --- НАЧАЛО: ИЗВЛЕЧЕНИЕ ОТНОСИТЕЛЬНОГО ПУТИ ---
+        # Проверяем, начинается ли путь с ожидаемого префикса пользователя
+        if current_path.startswith(base_prefix):
+            # Извлекаем относительный путь *внутри* пользовательской папки
+            relative_path = current_path[len(base_prefix):].lstrip('/')
+        elif current_path == base_prefix.rstrip('/'):
+            # Если путь совпадает с корнем пользовательской папки (без завершающего слэша)
+            relative_path = ""
+        elif not current_path:
+            # Если path не указан, показываем корень пользователя
+            relative_path = ""
+        else:
+            # Путь не принадлежит пользователю или некорректен
+            logger.warning(f"Пользователь {user_id} запросил недопустимый путь: {current_path}")
+            # Лучше выбросить Http404 или перенаправить на корень
+            return redirect('files:file_manager') # Перенаправляем на корень
 
-        if not current_path.startswith(base_prefix):
-            logger.warning(f"Подмена пути: {current_path} → принудительно установлен {base_prefix}")
-            current_path = base_prefix
+        # Убедимся, что относительный путь корректен для S3
+        # Если он не пустой, добавим завершающий слэш для list_objects_v2, если его нет
+        s3_list_prefix = f"{relative_path}/" if relative_path and not relative_path.endswith('/') else relative_path
+        # Полный путь для S3 должен включать base_prefix
+        full_s3_prefix = f"{base_prefix}{s3_list_prefix}".lstrip('/').rstrip('/') + '/'
+        if s3_list_prefix == "": # Если относительный путь пустой, full_s3_prefix должен быть base_prefix/
+            full_s3_prefix = f"{base_prefix}/"
 
-        if not current_path.endswith('/'):
-            current_path += '/'
+        logger.debug(f"[file_manager] Относительный путь (для breadcrumbs): '{relative_path}'")
+        logger.debug(f"[file_manager] Полный S3 префикс (для list_files): '{full_s3_prefix}'")
+        # --- КОНЕЦ: ИЗВЛЕЧЕНИЕ ОТНОСИТЕЛЬНОГО ПУТИ ---
 
-        items = service.list_files(user_id=user_id, prefix=current_path)
-        breadcrumbs = _build_breadcrumbs(current_path)
+        # --- ВЫЗОВЫ СЕРВИСОВ ---
+        # Передаём ПОЛНЫЙ префикс в сервис для S3
+        items = service.list_files(user_id=user_id, prefix=full_s3_prefix)
+        # Передаём ОТНОСИТЕЛЬНЫЙ путь в _build_breadcrumbs
+        breadcrumbs = _build_breadcrumbs(relative_path)
 
         context = {
             'items': items,
             'breadcrumbs': breadcrumbs,
-            'current_path': current_path,
+            # Передаём ОТНОСИТЕЛЬНЫЙ путь в шаблон, чтобы формировать правильные ?path=... ссылки
+            'current_path_relative': relative_path,
+            # Опционально: передать base_prefix, если шаблону нужно знать его для формирования ссылок
+            # 'user_base_prefix': base_prefix,
         }
 
         return render(request, "files/file_manager.html", context)
 
     except Exception as e:
         logger.error(f"Ошибка в file_manager_view: {e}", exc_info=True)
-        return render(request, 'files/error.html', {'error_message': 'Ошибка загрузки'})
+        return render(request, 'files/error.html', {'error_message': 'Ошибка загрузки файлов.'})
 
 
 @login_required
@@ -233,19 +252,21 @@ def create_folder_view(request):
     if request.method == "POST":
         user_id = request.user.id
         folder_name = request.POST.get('folder_name', '').strip()
-        current_path = request.POST.get('current_path', '').strip()
+        current_path_encoded = request.POST.get('current_path', '').strip()
+        current_path = unquote(current_path_encoded)
 
-        logger.debug(f"[create_folder] current_path='{current_path}', folder_name='{folder_name}'")
+        print(f"[create_folder] current_path='{current_path}', folder_name='{folder_name}'")
 
         if not folder_name:
             messages.error(request, 'Имя папки не может быть пустым')
             return redirect_with_path(current_path or f"user-{user_id}-files/")
 
-        if not current_path.startswith(f"user-{user_id}-files"):
-            raise Http404("Доступ запрещен")
+        expected_prefix = f"user-{user_id}-files/"
 
-        if not current_path.endswith('/'):
+        if current_path and not current_path.endswith('/'):
             current_path += '/'
+        elif not current_path or current_path == '':
+             current_path = expected_prefix
         full_path = f"{current_path}{folder_name}/"
 
         try:
@@ -257,7 +278,7 @@ def create_folder_view(request):
                 messages.error(request, 'Не удалось создать папку')
                 return redirect_with_path(current_path)
         except Exception as e:
-            logger.error(f"Ошибка при создании папки {full_path}: {e}", exc_info=True)
+            print(f"Ошибка при создании папки {full_path}: {e}")
             messages.error(request, 'Ошибка сервера')
             return redirect_with_path(current_path)
 
@@ -271,24 +292,29 @@ def redirect_with_path(path: str):
     return redirect(f"{reverse('files:file_manager')}{query}")
 
 
-def _build_breadcrumbs(path: str) -> List[Dict]:
+def _build_breadcrumbs(path: str) -> List[Dict[str, str]]:
     """
-    Вспомогательная функция для построения навигационной цепочки из пути.
+    Строит навигационную цепочку (breadcrumbs) из относительного пути внутри пользовательской папки.
 
-    :param path: Относительный путь
+    Args:
+        path (str): Относительный путь, например, 'docs/projects/'. Может быть пустым.
 
-    :return: list[dict] - Список из словарей, содержащий: {'name': "...", 'url_path': "..."}
+    Returns:
+        list[dict]: Список словарей {'name': '...', 'url_path': '...'}.
+                    url_path - это относительный путь до элемента (без user-{id}-files/).
     """
+    logger.debug(f"_build_breadcrumbs: input path = '{path}'")
     if not path:
-        return []
+        return [] # Если путь пустой (корень), цепочка пуста
 
-    parts = path.rstrip('/').split('/')
+    # Убираем ведущие и завершающие слэши, разбиваем на части
+    parts = path.strip('/').split('/')
     breadcrumbs = []
     accumulated_path = ""
     for part in parts:
-        if not part:
-            continue
-
+        if not part: # Пропускаем пустые части (например, из-за двойных слэшей)
+             continue
+        # Формируем накопленный путь для текущего элемента
         if accumulated_path:
             accumulated_path += f"{part}/"
         else:
@@ -296,7 +322,8 @@ def _build_breadcrumbs(path: str) -> List[Dict]:
 
         breadcrumbs.append({
             'name': part,
-            'url_path': accumulated_path
+            'url_path': accumulated_path.rstrip('/')
         })
 
+    logger.debug(f"_build_breadcrumbs: output breadcrumbs = {breadcrumbs}")
     return breadcrumbs
