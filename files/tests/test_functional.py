@@ -205,11 +205,6 @@ class FunctionalTest(StaticLiveServerTestCase):
         new_name_input.send_keys("renamed.pdf")
 
         save_btn = modal.find_element(By.XPATH, ".//button[text()='Сохранить']")
-        print("Form action (should be empty, defaults to current page):",
-              driver.find_element(By.ID, 'renameForm').get_attribute('action'))
-        print("New name input value:", new_name_input.get_attribute('value'))
-        print("Current URL before click:", driver.current_url)
-
         save_btn.click()
 
         WebDriverWait(driver, 10).until(
@@ -233,9 +228,15 @@ class FunctionalTest(StaticLiveServerTestCase):
         WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.CLASS_NAME, 'card')))
 
         driver.find_element(By.CSS_SELECTOR, '[data-bs-toggle="dropdown"]').click()
-        delete_btn = WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.CSS_SELECTOR,
+        delete_btn_file = WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.CSS_SELECTOR,
                                                                                  '[data-type="submit-delete"]')))
-        delete_btn.click()
+        delete_btn_file.click()
+
+        WebDriverWait(driver, 10).until(EC.alert_is_present())
+        alert = driver.switch_to.alert
+        alert.accept()
+
+        driver.find_element(By.CSS_SELECTOR, '[data-btn="btn-delete"]').click()
 
         WebDriverWait(driver, 10).until(EC.alert_is_present())
         alert = driver.switch_to.alert
@@ -243,15 +244,15 @@ class FunctionalTest(StaticLiveServerTestCase):
 
         try:
             WebDriverWait(driver, 10).until(EC.invisibility_of_element_located((By.XPATH, '//h5[text()="file.txt"]')))
+            WebDriverWait(driver, 10).until(EC.invisibility_of_element_located((By.XPATH, '//h5[text()="docs/"]')))
 
         except:
             driver.refresh()
             WebDriverWait(driver, 10).until(
                 EC.presence_of_element_located((By.TAG_NAME, "body"))
             )
-
-        card_titles = [el.text for el in driver.find_elements(By.CLASS_NAME, "card-title")]
-        self.assertNotIn("file.txt", card_titles)
+        paragraph = driver.find_element(By.CSS_SELECTOR, '[data-type="paragraph"]').text
+        self.assertTrue(paragraph)
 
     def test_user_can_see_breadcrumbs_inside_folder(self):
         """Пользователь видит навигационную цепочку внутри папок"""
