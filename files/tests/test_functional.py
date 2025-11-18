@@ -259,13 +259,13 @@ class FunctionalTest(StaticLiveServerTestCase):
         driver = self.driver
         url = f"{self.live_server_url}/files/manager/?path={quote(f'{self.prefix}docs/projects/')}"
 
-        driver.get(url)
         self.login_browser()
+        driver.get(url)
 
         breadcrumbs = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.CLASS_NAME, 'breadcrumb')))
 
         items = breadcrumbs.find_elements(By.CLASS_NAME, "breadcrumb-item")
-        texts = [item.text for item in items]
+        texts = [item.text for item in items if item.text != 'Главная']
 
         expected_parts = ['docs', 'projects']
 
