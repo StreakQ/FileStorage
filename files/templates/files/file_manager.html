@@ -13,6 +13,21 @@
     <!-- Навигационная цепочка -->
     {% include 'files/partials/breadcrumbs.html' %}
 
+        <form method="post" enctype="multipart/form-data" action="{% url 'files:upload' %}">
+            {% csrf_token %}
+
+            <input type="file" name="files" multiple id="fileInput" style="display: none;">
+
+            <button type="button" class="btn btn-primary" id="customUploadBtn">
+                <i class="fas fa-upload"></i> Выбрать файлы
+            </button>
+
+            <input type="hidden" name="current_path" value="{{ current_path }}">
+
+            <button type="submit" class="btn btn-outline-primary" id="uploadBtn">Загрузить (0 файлов)</button>
+        </form>
+
+
     <!-- Кнопка создания папки -->
     <button class="btn btn-primary mt-3" id="showCreateForm">
         <i class="fas fa-folder-plus"></i> Создать папку
@@ -207,6 +222,53 @@ document.addEventListener('DOMContentLoaded', function () {
             creationBtn.style.display = 'inline-block';
         });
     }
+});
+// files/static/files/js/file_manager.js (или в <script> теге внутри шаблона)
+
+document.addEventListener('DOMContentLoaded', function () {
+    const fileInput = document.getElementById('fileInput');
+    const customUploadBtn = document.getElementById('customUploadBtn');
+    const uploadBtn = document.getElementById('uploadBtn');
+
+    // 1. Обработчик клика по кнопке "Выбрать файлы"
+    customUploadBtn.addEventListener('click', function () {
+        fileInput.click(); // Программно нажимаем на скрытое поле <input type="file">
+    });
+
+    // 2. Обработчик изменения (выбора) файлов в input'e
+    fileInput.addEventListener('change', function () {
+        const selectedFiles = fileInput.files; // FileList объект с выбранными файлами
+        const fileCount = selectedFiles.length;
+
+        if (fileCount > 0) {
+            // Если файлы выбраны
+            uploadBtn.disabled = false; // Активируем кнопку "Загрузить"
+            // Обновляем текст кнопки, показывая количество выбранных файлов
+            uploadBtn.textContent = `Загрузить (${fileCount} ${getFileCountText(fileCount)})`;
+        } else {
+            // Если файлы сняты (например, пользователь отменил выбор)
+            uploadBtn.disabled = true; // Деактивируем кнопку "Загрузить"
+            uploadBtn.textContent = 'Загрузить (0 файлов)'; // Возвращаем исходный текст
+        }
+    });
+
+    // --- Вспомогательная функция для склонения слова "файл" ---
+    function getFileCountText(count) {
+        // Простой пример склонения для русского языка
+        if (count === 1) return 'файл';
+        if (count >= 2 && count <= 4) return 'файла';
+        return 'файлов';
+    }
+    // --- Конец вспомогательной функции ---
+
+     const uploadForm = fileInput.closest('form');
+     uploadForm.addEventListener('submit', function(event) {
+         if (fileInput.files.length === 0) {
+            event.preventDefault(); // Остановить отправку, если файлы не выбраны
+             alert('Пожалуйста, выберите файлы для загрузки.');
+       }
+
+     });
 });
 </script>
 
