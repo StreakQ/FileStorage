@@ -38,7 +38,6 @@ def file_manager_view(request):
         encoded_path = request.GET.get('path', '')
         current_path = unquote(encoded_path) if encoded_path else ''
 
-
         # --- НАЧАЛО: ИЗВЛЕЧЕНИЕ ОТНОСИТЕЛЬНОГО ПУТИ ---
         # Проверяем, начинается ли путь с ожидаемого префикса пользователя
         if current_path.startswith(base_prefix):
@@ -98,12 +97,11 @@ def file_upload_view(request):
     if request.method == 'POST':
         user_id = request.user.id
         files = request.FILES.getlist('files')
-        current_path = request.POST.get('current_path', '').strip()
+        relative_path = request.POST.get('current_path', '').strip()
 
-        logger.debug(f"[upload] Получен current_path: '{current_path}'")
+        #print(f"[upload] Получен relative_path: '{relative_path}'")
 
-        if not current_path or not current_path.startswith(f"user-{user_id}-files"):
-            current_path = f"user-{user_id}-files/"
+        current_path = f"user-{user_id}-files/{relative_path}"
 
         for uploaded_file in files:
             filename_in_s3 = f"{current_path}{uploaded_file.name}"
