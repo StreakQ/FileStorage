@@ -4,6 +4,7 @@ from django.views.decorators.csrf import csrf_protect
 from django.http import Http404, StreamingHttpResponse, HttpResponseNotAllowed
 from django.contrib.auth.decorators import login_required
 from files.services.file_storage_service import FileStorageService
+from files.services.storage.minio_strategy import MinIOStorageStrategy
 from django.conf import settings
 from django.contrib import messages
 import logging
@@ -29,7 +30,8 @@ def home_redirect_view(request):
 @csrf_protect
 @login_required
 def file_manager_view(request):
-    service = FileStorageService()
+    storage_strategy = MinIOStorageStrategy()
+    service = FileStorageService(storage_strategy)
     try:
         user = request.user
         user_id = user.id
@@ -38,48 +40,32 @@ def file_manager_view(request):
         encoded_path = request.GET.get('path', '')
         current_path = unquote(encoded_path) if encoded_path else ''
 
-        # --- НАЧАЛО: ИЗВЛЕЧЕНИЕ ОТНОСИТЕЛЬНОГО ПУТИ ---
-        # Проверяем, начинается ли путь с ожидаемого префикса пользователя
         if current_path.startswith(base_prefix):
-            # Извлекаем относительный путь *внутри* пользовательской папки
             relative_path = current_path[len(base_prefix):].lstrip('/')
         elif current_path == base_prefix.rstrip('/'):
-            # Если путь совпадает с корнем пользовательской папки (без завершающего слэша)
             relative_path = ""
         elif not current_path:
-            # Если path не указан, показываем корень пользователя
             relative_path = ""
         else:
-            # Путь не принадлежит пользователю или некорректен
             logger.warning(f"Пользователь {user_id} запросил недопустимый путь: {current_path}")
-            # Лучше выбросить Http404 или перенаправить на корень
-            return redirect('files:file_manager') # Перенаправляем на корень
+            return redirect('files:file_manager')
 
-        # Убедимся, что относительный путь корректен для S3
-        # Если он не пустой, добавим завершающий слэш для list_objects_v2, если его нет
         s3_list_prefix = f"{relative_path}/" if relative_path and not relative_path.endswith('/') else relative_path
-        # Полный путь для S3 должен включать base_prefix
         full_s3_prefix = f"{base_prefix}{s3_list_prefix}".lstrip('/').rstrip('/') + '/'
-        if s3_list_prefix == "": # Если относительный путь пустой, full_s3_prefix должен быть base_prefix/
+        if s3_list_prefix == "":
             full_s3_prefix = f"{base_prefix}/"
 
         logger.debug(f"[file_manager] Относительный путь (для breadcrumbs): '{relative_path}'")
         logger.debug(f"[file_manager] Полный S3 префикс (для list_files): '{full_s3_prefix}'")
-        # --- КОНЕЦ: ИЗВЛЕЧЕНИЕ ОТНОСИТЕЛЬНОГО ПУТИ ---
 
-        # --- ВЫЗОВЫ СЕРВИСОВ ---
-        # Передаём ПОЛНЫЙ префикс в сервис для S3
         items = service.list_files(user_id=user_id, prefix=full_s3_prefix)
-        # Передаём ОТНОСИТЕЛЬНЫЙ путь в _build_breadcrumbs
         breadcrumbs = _build_breadcrumbs(relative_path)
 
         context = {
             'items': items,
             'breadcrumbs': breadcrumbs,
-            # Передаём ОТНОСИТЕЛЬНЫЙ путь в шаблон, чтобы формировать правильные ?path=... ссылки
             'current_path_relative': relative_path,
-            # Опционально: передать base_prefix, если шаблону нужно знать его для формирования ссылок
-            # 'user_base_prefix': base_prefix,
+
         }
 
         return render(request, "files/file_manager.html", context)
@@ -92,14 +78,13 @@ def file_manager_view(request):
 @login_required
 @csrf_protect
 def file_upload_view(request):
-    service = FileStorageService()
+    storage_strategy = MinIOStorageStrategy()
+    service = FileStorageService(storage_strategy)
 
     if request.method == 'POST':
         user_id = request.user.id
         files = request.FILES.getlist('files')
         relative_path = request.POST.get('current_path', '').strip()
-
-        #print(f"[upload] Получен relative_path: '{relative_path}'")
 
         current_path = f"user-{user_id}-files/{relative_path}"
 
@@ -122,7 +107,8 @@ def file_upload_view(request):
 @login_required
 @csrf_protect
 def file_download_view(request, s3_key):
-    service = FileStorageService()
+    storage_strategy = MinIOStorageStrategy()
+    service = FileStorageService(storage_strategy)
     """
     Позволяет пользователю скачать файлы из облака
     :param s3_key:
@@ -165,7 +151,8 @@ def file_download_view(request, s3_key):
 @login_required
 @csrf_protect
 def file_delete_view(request, s3_key):
-    service = FileStorageService()
+    storage_strategy = MinIOStorageStrategy()
+    service = FileStorageService(storage_strategy)
     """
     Позволяет пользователю удалить файл или папку
     :param s3_key:
@@ -199,7 +186,8 @@ def file_delete_view(request, s3_key):
 @login_required
 @csrf_protect
 def file_rename_view(request):
-    service = FileStorageService()
+    storage_strategy = MinIOStorageStrategy()
+    service = FileStorageService(storage_strategy)
 
     if request.method == "POST":
         user_id = request.user.id
@@ -244,7 +232,9 @@ def file_rename_view(request):
 @login_required
 @csrf_protect
 def create_folder_view(request):
-    service = FileStorageService()
+    storage_strategy = MinIOStorageStrategy()
+    service = FileStorageService(storage_strategy)
+
     if request.method == "POST":
         user_id = request.user.id
         folder_name = request.POST.get('folder_name', '').strip()
@@ -301,16 +291,15 @@ def _build_breadcrumbs(path: str) -> List[Dict[str, str]]:
     """
     logger.debug(f"_build_breadcrumbs: input path = '{path}'")
     if not path:
-        return [] # Если путь пустой (корень), цепочка пуста
+        return []
 
-    # Убираем ведущие и завершающие слэши, разбиваем на части
     parts = path.strip('/').split('/')
     breadcrumbs = []
     accumulated_path = ""
     for part in parts:
-        if not part: # Пропускаем пустые части (например, из-за двойных слэшей)
+        if not part:
              continue
-        # Формируем накопленный путь для текущего элемента
+
         if accumulated_path:
             accumulated_path += f"{part}/"
         else:
