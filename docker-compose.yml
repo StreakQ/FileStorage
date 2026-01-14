@@ -1,54 +1,72 @@
-# docker-compose.yml
-version: '3.8' # Указывает версию формата файла
-
-services: # Определяем список сервисов
-  db: # Имя сервиса (произвольное, но часто отражает тип)
-    image: mysql:8.0 # Образ для контейнера
-    environment: # Переменные окружения для MySQL
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD} # Использует переменные из .env файла
+services:
+  db:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       MYSQL_DATABASE: ${MYSQL_DATABASE}
-    volumes: # Монтируем том для постоянного хранения данных MySQL
+    volumes:
       - mysql_data:/var/lib/mysql
-    networks: # Подключаем к сети
+    networks:
       - app_network
 
-  minio: # Имя сервиса
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    networks:
+      - app_network
+
+  minio:
     image: minio/minio:latest
-    command: server /data --console-address ":9001" # Команда для запуска внутри контейнера
-    environment: # Переменные для MinIO
+    command: server /data --console-address ":9001"
+    environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
-    ports: # Публикуем порты на хост
+    ports:
       - "9000:9000"
       - "9001:9001"
-    volumes: # Том для данных MinIO
+    volumes:
       - minio_data:/data
-    networks: # Подключаем к сети
+    networks:
       - app_network
 
-  web: # Имя сервиса для Django
-    build: . # Собираем образ из текущей директории (где Dockerfile)
-    # image: filestorage:latest # Альтернатива: использовать готовый образ
-    ports: # Публикуем порт Django-приложения
+  web:
+    build: .
+    ports:
       - "8080:8000"
-    environment: # Переменные для Django
-      # ... DB_HOST, MINIO_ENDPOINT_URL, REDIS_HOST и т.д. ...
+    environment:
       DB_HOST: db
       MINIO_ENDPOINT_URL: http://minio:9000
-    depends_on: # Указывает зависимости (web ждёт запуска db, minio)
+    depends_on:
       - db
       - minio
-    volumes: # Монтируем статику (опционально)
+      - redis
+    volumes:
       - static_volume:/app/staticfiles
-    networks: # Подключаем к сети
+    networks:
       - app_network
-    restart: unless-stopped # Перезапускать при сбоях
+    restart: unless-stopped
 
-volumes: # Определяем именованные тома
+  worker:
+    build: .
+    command: celery -A FileStorage worker --loglevel=info
+    environment:
+      DB_HOST: db
+      MINIO_ENDPOINT_URL: http://minio:9000
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
+      - db
+      - minio
+      - redis
+    networks:
+      app_network:
+    restart: unless-stopped
+
+volumes:
   mysql_data:
   minio_data:
   static_volume:
 
-networks: # Определяем сеть
+networks:
   app_network:
-    driver: bridge # Стандартный драйвер
+    driver: bridge
