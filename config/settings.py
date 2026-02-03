@@ -6,7 +6,7 @@ import sys
 ENV_PATH = Path(__file__).parent.resolve().parent / "env" / "local.env"
 config = Config(RepositoryEnv(str(ENV_PATH)))
 BASE_DIR = Path(__file__).resolve().parent.parent
-#
+
 # TEST_ENV_PATH = Path(__file__).parent.resolve().parent / "env" / "test.env"
 # test_config = Config(RepositoryEnv(str(TEST_ENV_PATH)))
 # TEST_BASE_DIR = Path(__file__).resolve().parent.parent
@@ -74,31 +74,19 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'config.wsgi.application'
 
-
-if os.getenv('TESTING'):
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': config('TEST_DB_NAME', default=BASE_DIR / 'test_db.sqlite3'),
-            'USER': '',
-            'PASSWORD': '',
-            'HOST': ''
-        }
-    }
-else:
-    DATABASES = {
-        'default': {
-                'ENGINE': 'django.db.backends.mysql',
-                'NAME': config('DB_NAME'),
-                'USER': config('DB_USER'),
-                'PASSWORD': config('DB_PASSWORD'),
-                'HOST': config('DB_HOST', default='localhost'),
-                'PORT': config('DB_PORT', default='3306'),
-                'OPTIONS': {
-                            'charset': 'utf8mb4',
-                            'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
-                        },
-                 }
+DATABASES = {
+    'default': {
+            'ENGINE': 'django.db.backends.mysql',
+            'NAME': config('DB_NAME'),
+            'USER': config('DB_USER'),
+            'PASSWORD': config('DB_PASSWORD'),
+            'HOST': config('DB_HOST', default='db'),
+            'PORT': config('DB_PORT', default='3306'),
+            'OPTIONS': {
+                        'charset': 'utf8mb4',
+                        'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
+                    },
+             }
 }
 
 # Password validation
@@ -117,8 +105,6 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-#AUTH_USER_MODEL = 'models.CustomUser'
-
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_DIRS = [
@@ -131,7 +117,6 @@ TIME_ZONE = 'UTC'
 USE_I18N = True
 USE_TZ = True
 
-TESTING = 'test' in sys.argv or 'pytest' in sys.modules
 
 # Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
