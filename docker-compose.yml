@@ -1,9 +1,11 @@
 services:
   db:
     image: mysql:8.0
+    env_file:
+      - env/local.env
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_ROOT_PASSWORD: rootpass
+      MYSQL_DATABASE: file_storage_db
     volumes:
       - mysql_data:/var/lib/mysql
     networks:
@@ -18,10 +20,12 @@ services:
 
   minio:
     image: minio/minio:latest
+    env_file:
+      - env/local.env
     command: server /data --console-address ":9001"
     environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
     ports:
       - "9000:9000"
       - "9001:9001"
@@ -34,14 +38,19 @@ services:
     build: .
     ports:
       - "8080:8000"
+    env_file:
+      - env/local.env
     environment:
-      DB_HOST: db
+      DJANGO_SETTINGS_MODULE: config.settings
+      DATABASE_ENGINE: django.db.backends.mysql
       MINIO_ENDPOINT_URL: http://minio:9000
+      REDIS_URL: redis://redis:6379/0
     depends_on:
       - db
       - minio
       - redis
     volumes:
+      - ./:/app/
       - static_volume:/app/staticfiles
     networks:
       - app_network
@@ -49,8 +58,12 @@ services:
 
   worker:
     build: .
-    command: celery -A FileStorage worker --loglevel=info
+    command: celery -A config.celery_app worker --loglevel=info
+    env_file:
+      - env/local.env
     environment:
+      PYTHONPATH: /app
+      DJANGO_SETTINGS_MODULE: config.settings
       DB_HOST: db
       MINIO_ENDPOINT_URL: http://minio:9000
       REDIS_URL: redis://redis:6379/0
@@ -58,14 +71,16 @@ services:
       - db
       - minio
       - redis
+    volumes:
+      - ./:/app/
     networks:
       app_network:
     restart: unless-stopped
 
 volumes:
+  static_volume:
   mysql_data:
   minio_data:
-  static_volume:
 
 networks:
   app_network:
