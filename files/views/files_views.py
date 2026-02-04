@@ -3,13 +3,13 @@ from django.urls import reverse
 from django.views.decorators.csrf import csrf_protect
 from django.http import Http404, StreamingHttpResponse, HttpResponseNotAllowed
 from django.contrib.auth.decorators import login_required
-from files.services.file_storage_service import FileStorageService
-from files.services.storage.minio_strategy import MinIOStorageStrategy
 from django.conf import settings
 from django.contrib import messages
 import logging
 from urllib.parse import unquote, urlencode
 from typing import List, Dict
+from files.services.strategy_factory import get_storage_strategy
+from files.services.file_storage_service import FileStorageService
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +30,7 @@ def home_redirect_view(request):
 @csrf_protect
 @login_required
 def file_manager_view(request):
-    storage_strategy = MinIOStorageStrategy()
+    storage_strategy = get_storage_strategy()
     service = FileStorageService(storage_strategy)
     try:
         user = request.user
@@ -78,7 +78,7 @@ def file_manager_view(request):
 @login_required
 @csrf_protect
 def file_upload_view(request):
-    storage_strategy = MinIOStorageStrategy()
+    storage_strategy = get_storage_strategy()
     service = FileStorageService(storage_strategy)
 
     if request.method == 'POST':
@@ -107,7 +107,7 @@ def file_upload_view(request):
 @login_required
 @csrf_protect
 def file_download_view(request, s3_key):
-    storage_strategy = MinIOStorageStrategy()
+    storage_strategy = get_storage_strategy()
     service = FileStorageService(storage_strategy)
     """
     Позволяет пользователю скачать файлы из облака
@@ -121,7 +121,7 @@ def file_download_view(request, s3_key):
         raise Http404("Файл не найден или доступ запрещен")
 
     try:
-        response = service.s3_client.get_object(Bucket=bucket_name, Key=s3_key)
+        response = service.strategy.get_object(user_id=user_id, filename_in_s3=s3_key)
 
         file_stream = response["Body"]
         content_type = response.get("ContentType", 'application/octet-stream')
@@ -139,10 +139,6 @@ def file_download_view(request, s3_key):
         logger.info(f"Файл {s3_key} начал скачиваться")
         return http_response
 
-    except service.s3_client.exceptions.NoSuchKey:
-        logger.error(f"Файл не найден в S3: {s3_key}")
-        raise Http404("Файл не найден")
-
     except Exception as e:
         logger.error(f"Ошибка при скачивании файла {s3_key}: {e}", exc_info=True)
         return redirect('files:file_manager')
@@ -151,7 +147,7 @@ def file_download_view(request, s3_key):
 @login_required
 @csrf_protect
 def file_delete_view(request, s3_key):
-    storage_strategy = MinIOStorageStrategy()
+    storage_strategy = get_storage_strategy()
     service = FileStorageService(storage_strategy)
     """
     Позволяет пользователю удалить файл или папку
@@ -186,7 +182,7 @@ def file_delete_view(request, s3_key):
 @login_required
 @csrf_protect
 def file_rename_view(request):
-    storage_strategy = MinIOStorageStrategy()
+    storage_strategy = get_storage_strategy()
     service = FileStorageService(storage_strategy)
 
     if request.method == "POST":
@@ -232,7 +228,7 @@ def file_rename_view(request):
 @login_required
 @csrf_protect
 def create_folder_view(request):
-    storage_strategy = MinIOStorageStrategy()
+    storage_strategy = get_storage_strategy()
     service = FileStorageService(storage_strategy)
 
     if request.method == "POST":

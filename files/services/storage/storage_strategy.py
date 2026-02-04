@@ -23,6 +23,20 @@ class StorageStrategy(ABC):
         pass
 
     @abstractmethod
+    def get_object(self, user_id: int, filename_in_s3: str) -> dict:
+        """
+        Получает объект из хранилища.
+        Args:
+            user_id: Идентификатор пользователя.
+            filename_in_s3:Имя файла и путь внутри папки пользователя
+
+        Returns:
+            dict с метаданными:
+
+        """
+        pass
+
+    @abstractmethod
     def list_files(self, user_id: int, prefix: str = '') -> List[Dict[str, Any]]:
         """
         Получает список файлов и папок.

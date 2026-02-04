@@ -30,6 +30,17 @@ class FileStorageService:
         """
         return self.strategy.upload_file(user_id, file_obj, filename_in_s3)
 
+    def get_object(self, user_id: int, filename_in_s3: str) -> dict:
+        """
+        Получает объект из хранилища.
+        Args:
+            user_id: Идентификатор пользователя.
+            filename_in_s3:Имя файла и путь внутри папки пользователя
+
+        Returns: dict
+        """
+        return self.strategy.get_object(user_id=user_id, filename_in_s3=filename_in_s3)
+
     def list_files(self, user_id: int, prefix: str = '') -> List[Dict[str, Any]]:
         """
         Получает список файлов и папок через стратегию.

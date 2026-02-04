@@ -3,7 +3,7 @@ from botocore.exceptions import ClientError
 from django.conf import settings
 import logging
 from typing import Union, BinaryIO, List, Dict, Any
-from .storage_strategy import StorageStrategy
+from files.services.storage.storage_strategy import StorageStrategy
 
 logger = logging.getLogger(__name__)
 
@@ -59,7 +59,7 @@ class MinIOStorageStrategy(StorageStrategy):
         Загружает файл в бакет MinIO.
 
         Args:
-            user_id (int): Идентификатор пользователя Django.
+            user_id (int): Идентификатор пользователя.
             file_obj (Union[BinaryIO, bytes]): Объект файла для загрузки.
             filename_in_s3 (str): Имя файла и путь внутри папки пользователя, под которым он будет сохранен.
 
@@ -91,12 +91,41 @@ class MinIOStorageStrategy(StorageStrategy):
             logger.error(f"Ошибка загрузки файла {filename_in_s3} для пользователя {user_id}: {e}")
             return False
 
+    def get_object(self, user_id: int, filename_in_s3: str) -> dict:
+        """
+        Получает объект из MinIO.
+        Args:
+            user_id: Идентификатор пользователя.
+            filename_in_s3:Имя файла и путь внутри папки пользователя
+
+        Returns: dict с:
+        - 'Body': StreamingBody
+        - 'ContentType': str
+        - 'ContentLength': int
+        и другие поля, если есть
+
+        """
+        if not filename_in_s3 or not filename_in_s3.strip():
+            logger.error("Имя файла не может быть пустым")
+            raise ValueError("Имя файла не может быть пустым")
+
+        expected_prefix = f"user-{user_id}-files/"
+        if not filename_in_s3.startswith(expected_prefix):
+            logger.error(f"Попытка получения файла вне зоны доступа: {filename_in_s3}")
+            return False
+
+        try:
+            response = self.s3_client.get_object(Bucket=self.bucket_name, Key=filename_in_s3)
+            return response
+        except ClientError as e:
+            raise e
+
     def list_files(self, user_id: int, prefix: str = '') -> List[Dict[str, Any]]:
         """
         Получает список файлов и папок из MinIO.
 
         Args:
-            user_id (int): Идентификатор пользователя Django.
+            user_id (int): Идентификатор пользователя.
             prefix (str): Префикс пути для поиска файлов (например, 'user-1-files/www/').
 
         Returns:
@@ -156,7 +185,7 @@ class MinIOStorageStrategy(StorageStrategy):
         Удаляет файл или папку (рекурсивно, все объекты с префиксом) из MinIO.
 
         Args:
-            user_id (int): Идентификатор пользователя Django.
+            user_id (int): Идентификатор пользователя.
             s3_key (str): Относительный путь к файлу или папке.
 
         Returns:
@@ -205,7 +234,7 @@ class MinIOStorageStrategy(StorageStrategy):
         Переименовывает файл или папку в MinIO (копирование и удаление).
 
         Args:
-            user_id (int): Идентификатор пользователя Django.
+            user_id (int): Идентификатор пользователя.
             s3_key (str): Относительный путь к файлу или папке (например, 'folder/old_name.txt').
             new_name (str): Новое имя (только имя, не путь!).
 
@@ -286,7 +315,7 @@ class MinIOStorageStrategy(StorageStrategy):
         Создаёт папку в MinIO по полному S3-ключу.
 
         Args:
-            user_id (int): ID пользователя (для проверки доступа).
+            user_id (int): Идентификатор пользователя.
             folder_s3_key (str): Полный ключ папки (должен начинаться с user-{id}-files/).
 
         Returns:
