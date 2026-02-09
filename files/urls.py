@@ -11,5 +11,7 @@ urlpatterns = [
      path('delete/<path:s3_key>/', file_delete_view, name='delete'),
      path('rename/', file_rename_view, name='rename'),
      path('create_folder/', create_folder_view, name='create_folder'),
+     path('download-async/<str:s3_key>/', initiate_file_download_async_view, name='initiate_download_async'),
+     path('download-result/<str:task_id>/', get_download_url_result, name='get_download_url_result'),
 
 ]

@@ -123,7 +123,8 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 AWS_ACCESS_KEY_ID = config('MINIO_ROOT_USER')
 AWS_SECRET_ACCESS_KEY = config('MINIO_ROOT_PASSWORD')
-AWS_S3_ENDPOINT_URL = config('MINIO_ENDPOINT_URL')
+AWS_S3_INTERNAL_ENDPOINT_URL = config('MINIO_INTERNAL_ENDPOINT_URL')
+AWS_S3_PUBLIC_ENDPOINT_URL = config('MINIO_PUBLIC_ENDPOINT_URL')
 AWS_STORAGE_BUCKET_NAME = 'user-files'
 AWS_S3_REGION_NAME = 'us-east-1'
 AWS_S3_SIGNATURE_VERSION = 's3v4'
@@ -135,3 +136,55 @@ CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = 'Europe/Moscow'
+
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,  # Не отключать существующие логгеры
+    'formatters': {
+        'verbose': {
+            'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
+            'style': '{',
+        },
+        'simple': {
+            'format': '{levelname} {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',  # Вывод в stdout (появится в логах Docker)
+            'formatter': 'verbose',           # Используем verbose формат
+        },
+    },
+    'root': {
+        'handlers': ['console'],             # Корневой логгер выводит в консоль
+        'level': 'INFO',                    # Минимальный уровень — INFO
+    },
+    'loggers': {
+        # Логирование Django
+        'django': {
+            'handlers': ['console'],
+            'level': 'INFO',                # Уровень INFO для всех модулей Django
+            'propagate': False,             # Не передавать выше
+        },
+        # Логирование Celery
+        'celery': {
+            'handlers': ['console'],
+            'level': 'INFO',                # Уровень INFO для Celery
+            'propagate': False,
+        },
+        # Логирование вашего приложения (например, 'files')
+        'files': {
+            'handlers': ['console'],
+            'level': 'INFO',                # Уровень INFO для вашего приложения
+            'propagate': False,
+        },
+        # Если вы используете 'logger.info' в других местах
+        'your_app_name': {  # Замените 'your_app_name' на имя вашего приложения
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+    }
+}

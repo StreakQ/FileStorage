@@ -1,7 +1,7 @@
 from django.shortcuts import render, redirect
 from django.urls import reverse
 from django.views.decorators.csrf import csrf_protect
-from django.http import Http404, StreamingHttpResponse, HttpResponseNotAllowed
+from django.http import Http404, StreamingHttpResponse, HttpResponseNotAllowed, JsonResponse
 from django.contrib.auth.decorators import login_required
 from django.conf import settings
 from django.contrib import messages
@@ -10,9 +10,10 @@ from urllib.parse import unquote, urlencode
 from typing import List, Dict
 from files.services.strategy_factory import get_storage_strategy
 from files.services.file_storage_service import FileStorageService
+from files.tasks import generate_download_url_task
+from celery.result import AsyncResult
 
 logger = logging.getLogger(__name__)
-
 
 bucket_name = settings.AWS_STORAGE_BUCKET_NAME
 
@@ -110,7 +111,7 @@ def file_download_view(request, s3_key):
     storage_strategy = get_storage_strategy()
     service = FileStorageService(storage_strategy)
     """
-    Позволяет пользователю скачать файлы из облака
+    Позволяет пользователю скачать файлы из облака через подписанный URL.
     :param s3_key:
     :param request:
     """
@@ -121,26 +122,17 @@ def file_download_view(request, s3_key):
         raise Http404("Файл не найден или доступ запрещен")
 
     try:
-        response = service.strategy.get_object(user_id=user_id, filename_in_s3=s3_key)
-
-        file_stream = response["Body"]
-        content_type = response.get("ContentType", 'application/octet-stream')
-        content_length = response.get("ContentLength", None)
-
-        file_name = s3_key.split("/")[-1]
-
-        http_response = StreamingHttpResponse(file_stream, content_type=content_type)
-
-        http_response["Content-Disposition"] = f"attachment; filename={file_name}"
-
-        if content_length:
-            http_response["Content-Length"] = str(content_length)
-
-        logger.info(f"Файл {s3_key} начал скачиваться")
-        return http_response
+        storage_strategy = get_storage_strategy()
+        download_url = storage_strategy.generate_presigned_url(
+            method_name='get_object',
+            params={'Bucket': settings.AWS_STORAGE_BUCKET_NAME, 'Key': s3_key},
+            expires_in=3600
+        )
+        logger.info(f"Сгенерирован URL для скачивания файла {s3_key} для пользователя {user_id}")
+        return redirect(download_url)
 
     except Exception as e:
-        logger.error(f"Ошибка при скачивании файла {s3_key}: {e}", exc_info=True)
+        logger.error(f"Ошибка при генерации URL для файла {s3_key}: {e}", exc_info=True)
         return redirect('files:file_manager')
 
 
@@ -248,7 +240,7 @@ def create_folder_view(request):
         if current_path and not current_path.endswith('/'):
             current_path += '/'
         elif not current_path or current_path == '':
-             current_path = expected_prefix
+            current_path = expected_prefix
         full_path = f"{current_path}{folder_name}/"
 
         try:
@@ -294,7 +286,7 @@ def _build_breadcrumbs(path: str) -> List[Dict[str, str]]:
     accumulated_path = ""
     for part in parts:
         if not part:
-             continue
+            continue
 
         if accumulated_path:
             accumulated_path += f"{part}/"
@@ -308,3 +300,55 @@ def _build_breadcrumbs(path: str) -> List[Dict[str, str]]:
 
     logger.debug(f"_build_breadcrumbs: output breadcrumbs = {breadcrumbs}")
     return breadcrumbs
+
+
+@login_required
+@csrf_protect
+def initiate_file_download_async_view(request, s3_key: str):
+    """
+    Запускает задачу на генерацию URL и возвращает task_id
+    Args:
+        request:
+        s3_key:
+
+    Returns: task_id
+
+    """
+    if request.method == "POST":
+        user_id = request.user.id
+        expected_prefix = f"user-{user_id}-files/"
+
+        if not s3_key.startswith(expected_prefix):
+            raise Http404("Файл не найден или доступ запрещен")
+
+        task = generate_download_url_task.delay(
+            user_id=user_id,
+            s3_key=s3_key,
+        )
+        return JsonResponse({'task_id': task.id})
+
+    else:
+        return HttpResponseNotAllowed(['POST'])
+
+
+@csrf_protect
+def get_download_url_result(request, task_id: int):
+    """
+    Принимает task_id, проверяет статус задачи и возвращает результат
+    Args:
+        request:
+        task_id:
+
+    Returns:
+
+    """
+    task_result = AsyncResult(task_id)
+
+    if task_result.ready():
+        if task_result.successful():
+            download_url = task_result.result
+            return JsonResponse({'status': 'success', 'url': download_url})
+        else:
+            return JsonResponse({'status': 'error', 'message': str(task_result.info)})
+    else:
+        return JsonResponse({'status': 'pending'})

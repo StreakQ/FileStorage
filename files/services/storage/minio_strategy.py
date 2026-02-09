@@ -24,7 +24,7 @@ class MinIOStorageStrategy(StorageStrategy):
                 's3',
                 aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
                 aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
-                endpoint_url=settings.AWS_S3_ENDPOINT_URL,
+                endpoint_url=settings.AWS_S3_INTERNAL_ENDPOINT_URL,
                 region_name=settings.AWS_S3_REGION_NAME,
             )
         else:
@@ -345,3 +345,29 @@ class MinIOStorageStrategy(StorageStrategy):
         except Exception as e:
             logger.error(f"Неожиданная ошибка при создании папки {folder_s3_key}: {e}", exc_info=True)
             return False
+
+    def generate_presigned_url(self, method_name: str, params: dict, expires_in: int = 3600) -> str:
+        """
+        Генерирует временный URL для доступа к объекту.
+
+        Args:
+            method_name: Имя метода ('get_object', 'put_object' и т.д. ).
+            params: Параметры для операции (например, {'Bucket': 'my-bucket', 'Key': 'my-key'}).
+            expires_in: Время жизни URL в секундах (по умолчанию 1 час).
+
+        Returns: Подписанный URL.
+
+        """
+        try:
+            presigned_url = self.s3_client.generate_presigned_url(
+                ClientMethod=method_name,
+                Params=params,
+                ExpiresIn=expires_in
+            )
+            internal_url = settings.AWS_S3_INTERNAL_ENDPOINT_URL.rstrip('/')
+            public_url = settings.AWS_S3_PUBLIC_ENDPOINT_URL.rstrip('/')
+            presigned_url = presigned_url.replace(internal_url, public_url)
+
+            return presigned_url
+        except ClientError as e:
+            logger.error(f"Ошибка при генерации подписанного URL: {e}")
